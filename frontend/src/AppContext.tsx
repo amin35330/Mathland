@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppContextType, Book, Teacher, Video, Paradox, ThemeSettings, Creator, Settings } from './types';
 import { api } from './services/api';
 
-// مقادیر اولیه خالی (تا زمانی که دیتا از سرور برسد)
+// تنظیمات پیش‌فرض (تا زمانی که از سرور لود شود)
 const DEFAULT_SETTINGS: Settings = {
   appName: 'ریاضی‌یار',
   appLogoUrl: '',
@@ -18,7 +18,6 @@ const DEFAULT_SETTINGS: Settings = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // State ها دیگر از فایل constants خوانده نمی‌شوند، بلکه اول خالی هستند
   const [books, setBooks] = useState<Book[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -27,14 +26,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // وضعیت لودینگ
+  const [isLoading, setIsLoading] = useState(true);
   
   const [theme, setTheme] = useState<ThemeSettings>({
     darkMode: false,
     primaryColor: 'teal',
   });
 
-  // 1. Load Theme (Local Storage)
+  // 1. بارگذاری تم از حافظه مرورگر
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme_preference');
     if (savedTheme === 'dark') {
@@ -43,12 +42,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // 2. Fetch All Data from Backend on Load
+  // 2. دریافت تمام اطلاعات از سرور هنگام باز شدن سایت
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        // درخواست همزمان تمام اطلاعات برای سرعت بیشتر
         const [booksData, teachersData, videosData, paradoxesData, creatorsData, settingsData] = await Promise.all([
           api.getBooks(),
           api.getTeachers(),
@@ -58,12 +56,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           api.getSettings()
         ]);
 
-        setBooks(booksData);
-        setTeachers(teachersData);
-        setVideos(videosData);
-        setParadoxes(paradoxesData);
-        setCreators(creatorsData);
-        if(settingsData) setSettings(settingsData);
+        if (booksData) setBooks(booksData);
+        if (teachersData) setTeachers(teachersData);
+        if (videosData) setVideos(videosData);
+        if (paradoxesData) setParadoxes(paradoxesData);
+        if (creatorsData) setCreators(creatorsData);
+        
+        // اگر تنظیمات از سرور آمد، جایگزین کن
+        if (settingsData && settingsData.appName) {
+            setSettings(settingsData);
+        }
         
       } catch (error) {
         console.error("Error loading initial data:", error);
@@ -92,10 +94,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // تابع آپدیت هوشمند: هم State را آپدیت می‌کند و هم به سرور می‌فرستد
+  // تابع آپدیت داده‌ها (هم در صفحه و هم در سرور)
   const updateData = async (type: 'books' | 'teachers' | 'videos' | 'paradoxes' | 'creators', data: any[]) => {
     try {
-      // 1. آپدیت نمایشی (برای سرعت)
+      // اول State را آپدیت می‌کنیم تا کاربر تغییر را سریع ببیند
       switch (type) {
         case 'books': setBooks(data); await api.saveBooks(data); break;
         case 'teachers': setTeachers(data); await api.saveTeachers(data); break;
@@ -103,30 +105,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         case 'paradoxes': setParadoxes(data); await api.saveParadoxes(data); break;
         case 'creators': setCreators(data); await api.saveCreators(data); break;
       }
-      // 2. ذخیره در سرور (در پس‌زمینه انجام می‌شود)
     } catch (error) {
       console.error(`Failed to save ${type}:`, error);
-      alert('خطا در ذخیره اطلاعات در سرور. لطفاً اتصال اینترنت را بررسی کنید.');
+      alert('خطا در ذخیره اطلاعات در سرور.');
     }
   };
 
+  // تابع اختصاصی آپدیت تنظیمات
   const updateSettings = async (newSettings: Settings) => {
     try {
       setSettings(newSettings);
       await api.saveSettings(newSettings);
     } catch (error) {
       console.error('Failed to save settings:', error);
-      alert('خطا در ذخیره تنظیمات.');
+      throw error; // خطا را به کامپوننت Admin می‌فرستیم تا آلرت دهد
     }
   };
 
   if (isLoading) {
-     // یک لودینگ زیبا هنگام بالا آمدن سایت
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900 z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900 z-50" dir="rtl">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 dark:text-gray-300 font-bold animate-pulse">در حال دریافت اطلاعات از سرور...</p>
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 dark:text-gray-300 font-bold">در حال دریافت اطلاعات...</p>
         </div>
       </div>
     );
