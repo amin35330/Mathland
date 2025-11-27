@@ -1,0 +1,8 @@
+{
+  "name": "ریاضی لند کامل",
+  "description": "A modern, Persian-language educational platform for middle-school math students featuring AI-powered problem solving, video lessons, and teacher resources.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
