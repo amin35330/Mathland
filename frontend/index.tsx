@@ -1,3 +1,4 @@
+import './index.css'; // این خط خیلی مهم است
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
