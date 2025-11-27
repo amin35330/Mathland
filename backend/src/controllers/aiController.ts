@@ -4,7 +4,6 @@ import { GoogleGenAI } from "@google/genai";
 import { Settings } from '../models/allModels';
 
 export const solveProblem = async (req: Request, res: Response) => {
-  // شروع بلوک تلاش
   try {
     const { prompt, image, mimeType } = req.body;
 
@@ -14,7 +13,8 @@ export const solveProblem = async (req: Request, res: Response) => {
     }
 
     const ai = new GoogleGenAI({ apiKey: settings.apiKey });
-    const modelId = 'gemini-2.0-flash'; 
+    // استفاده از مدل سریعتر برای جلوگیری از Timeout ورسل
+    const modelId = 'gemini-1.5-flash'; 
 
     const parts: any[] = [];
 
@@ -66,8 +66,16 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     res.json({ answer: text });
 
-  } catch (error: any) { // پایان بلوک try و شروع catch
+  } catch (error: any) {
     console.error("AI Error:", error);
+    
+    // مدیریت خطای محدودیت گوگل (429)
+    if (error.message && error.message.includes('429')) {
+       return res.json({ 
+         answer: "سرور هوش مصنوعی شلوغ است (Too Many Requests). لطفاً یک دقیقه صبر کنید و دوباره امتحان کنید." 
+       });
+    }
+
     res.status(500).json({ message: 'خطا در هوش مصنوعی', error: error.message });
   }
 };

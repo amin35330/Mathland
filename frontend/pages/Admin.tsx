@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Plus, Trash, Save, LayoutDashboard, Book, User, Upload, X, Image as ImageIcon, Briefcase, Phone, Mail, FileText, PlayCircle, MonitorPlay, Clock, Code, Settings, HelpCircle, Pencil, Users, CloudUpload, Loader2, Check } from 'lucide-react';
+import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, CloudUpload, Loader2, Check, Settings } from 'lucide-react';
 import { Book as BookType, Teacher as TeacherType, Video as VideoType, Paradox as ParadoxType, Settings as SettingsType, Creator as CreatorType } from '../types';
 import { validateApiKey } from '../services/geminiService';
 
@@ -260,10 +259,16 @@ export const Admin: React.FC = () => {
     closeModals();
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings(tempSettings);
-    alert('تنظیمات با موفقیت ذخیره شد.');
+    try {
+      // مستقیم ذخیره می‌کنیم تا تداخل ایجاد نشود
+      await updateSettings(tempSettings);
+      alert('تنظیمات با موفقیت در سرور ذخیره شد.');
+    } catch (error) {
+      console.error(error);
+      alert('خطا در ذخیره تنظیمات.');
+    }
   };
 
   // --- Delete Handlers ---
@@ -416,18 +421,8 @@ export const Admin: React.FC = () => {
                             dir="ltr"
                             placeholder="AIza..."
                         />
-                        <button 
-                            type="button"
-                            onClick={handleTestApiKey}
-                            disabled={isTestingKey || !tempSettings.apiKey}
-                            className={`px-4 py-2 rounded-lg font-bold text-white transition-all flex items-center gap-2 min-w-[120px] justify-center ${keyStatus === 'success' ? 'bg-green-500 hover:bg-green-600' : keyStatus === 'error' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-                        >
-                            {isTestingKey ? <Loader2 className="animate-spin" size={18} /> : keyStatus === 'success' ? <Check size={18} /> : 'تست اتصال'}
-                            <span>{keyStatus === 'success' ? 'متصل شد' : 'تست'}</span>
-                        </button>
+                        {/* دکمه تست حذف شد تا در ذخیره اختلال ایجاد نکند */}
                     </div>
-                    {keyStatus === 'success' && <p className="text-green-600 text-sm animate-in fade-in slide-in-from-top-1">اتصال با سرور هوش مصنوعی با موفقیت برقرار شد.</p>}
-                    {keyStatus === 'error' && <p className="text-red-600 text-sm animate-in fade-in slide-in-from-top-1">خطا در برقراری ارتباط. لطفاً کلید API را بررسی کنید.</p>}
                  </div>
 
                  <div className="col-span-1 md:col-span-2 mt-4">
