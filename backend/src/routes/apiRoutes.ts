@@ -7,18 +7,17 @@ import {
   getCreators, syncCreators 
 } from '../controllers/contentController';
 import { getSettings, updateSettings } from '../controllers/settingsController';
+// --- اضافه شد ---
+import { solveProblem } from '../controllers/aiController'; 
 
 const router = express.Router();
 
-// --- Books Routes ---
-router.get('/books', getBooks);       // دریافت لیست کتاب‌ها
-router.post('/books', syncBooks);     // ذخیره/آپدیت کتاب‌ها (فقط ادمین)
+router.get('/books', getBooks);
+router.post('/books', syncBooks);
 
-// --- Teachers Routes ---
 router.get('/teachers', getTeachers);
 router.post('/teachers', syncTeachers);
 
-// --- Content Routes ---
 router.get('/videos', getVideos);
 router.post('/videos', syncVideos);
 
@@ -28,8 +27,10 @@ router.post('/paradoxes', syncParadoxes);
 router.get('/creators', getCreators);
 router.post('/creators', syncCreators);
 
-// --- Settings Routes ---
 router.get('/settings', getSettings);
 router.post('/settings', updateSettings);
+
+// --- مسیر جدید ---
+router.post('/ai/solve', solveProblem);
 
 export default router;
