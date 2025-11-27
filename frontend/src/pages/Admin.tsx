@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, CloudUpload, Loader2, Check, Settings } from 'lucide-react';
+import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, Upload, Loader2, Check, Settings } from 'lucide-react';
 import { Book as BookType, Teacher as TeacherType, Video as VideoType, Paradox as ParadoxType, Settings as SettingsType, Creator as CreatorType } from '../types';
 import { validateApiKey } from '../services/geminiService';
 
@@ -388,7 +388,7 @@ export const Admin: React.FC = () => {
                              </div>
                         ) : (
                             <div className="text-gray-400 flex flex-col items-center">
-                                <CloudUpload size={32} />
+                                <Upload size={32} />
                                 <span className="text-sm mt-2">آپلود لوگو (PNG, SVG)</span>
                             </div>
                         )}
