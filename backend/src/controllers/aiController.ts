@@ -22,8 +22,8 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     const ai = new GoogleGenAI({ apiKey: settings.apiKey });
     
-    // --- اصلاح مهم: استفاده از مدل پایدار و تست شده ---
-    const modelId = 'gemini-pro'; 
+    // --- اصلاح نهایی: استفاده از نام کامل و استاندارد مدل ---
+    const modelId = 'gemini-1.0-pro'; 
 
     const parts: any[] = [];
 
