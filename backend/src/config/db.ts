@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { Buffer } from 'buffer'; // برای دیکد کردن Base64
 
 // اینترفیس برای فایل JSON سرویس اکانت
 interface ServiceAccount {
@@ -23,24 +24,24 @@ const connectFirebase = () => {
   }
 
   try {
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-    if (!serviceAccountJson) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not defined in environment variables.");
+    if (!serviceAccountBase64) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not defined or empty in environment variables.");
     }
 
-    // تبدیل رشته JSON به آبجکت
-    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
+    // --- تغییر مهم: دیکد کردن رشته Base64 به JSON اصلی ---
+    const serviceAccountJsonString = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
+    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJsonString);
 
-    // بررسی فیلدهای ضروری
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
-        throw new Error("Missing essential fields in FIREBASE_SERVICE_ACCOUNT_KEY.");
+        throw new Error("Missing essential fields in FIREBASE_SERVICE_ACCOUNT_KEY after Base64 decode and JSON parse.");
     }
 
-    // اطمینان از مقداردهی خصوصی
-    if (serviceAccount.privateKey && serviceAccount.privateKey.includes('\\n')) {
-        serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
-    }
+    // این خط دیگر نیازی نیست چون فرض می‌کنیم Base64 دیکد شده و JSON معتبر است
+    // و کاراکترهای \n در private_key در خود فایل JSON به درستی ذخیره شده‌اند.
+    // اگر باز هم مشکلی بود، ممکن است نیاز باشد private_key را جداگانه replace کنیم.
+    // serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
