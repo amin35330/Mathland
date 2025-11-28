@@ -32,5 +32,5 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`[server]: Server is running at http://localhost:${port}`);
   });
 }
-// یک تغییر ساختگی برای فعال کردن Redeploy در Vercel
+// آخرین تلاش برای فیکس شدن مشکل Firebase
 export default app;
