@@ -2,24 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+    font-family: 'Vazirmatn', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .dark body {
+    @apply bg-slate-900 text-white;
+  }
 }
 
-body {
-  font-family: 'Vazirmatn', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  @apply bg-gray-50 dark:bg-slate-900;
-}
-
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   @apply bg-primary-300 rounded-full hover:bg-primary-500 dark:bg-primary-800;
 }
