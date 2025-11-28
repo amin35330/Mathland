@@ -1,45 +1,40 @@
 import { Request, Response } from 'express';
-import { getDb } from '../config/db';
-import { Teacher } from '../models/allModels';
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
+
+const getDb = () => admin.firestore();
 
 export const getTeachers = async (req: Request, res: Response) => {
   try {
-    const db = getDb();
-    const teachersCollection = db.collection('teachers');
-    const snapshot = await teachersCollection.orderBy('createdAt', 'desc').get();
-    const teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Teacher));
+    const snapshot = await getDb().collection('teachers').orderBy('createdAt', 'desc').get();
+    const teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(teachers);
   } catch (error: any) {
-    console.error("Error in getTeachers:", error);
+    console.error('Error in getTeachers:', error);
     res.status(500).json({ message: 'خطا در دریافت لیست معلمین', error: error.message });
   }
 };
 
 export const syncTeachers = async (req: Request, res: Response) => {
   try {
-    const data: Teacher[] = req.body;
-    const db = getDb();
-    const batch = db.batch();
-
-    const currentTeachers = await db.collection('teachers').get();
-    currentTeachers.docs.forEach(doc => {
-      batch.delete(doc.ref);
-    });
-
-    data.forEach(teacher => {
-      const newTeacherRef = db.collection('teachers').doc();
-      batch.set(newTeacherRef, { 
-        ...teacher,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+    const data = req.body;
+    const batch = getDb().batch();
+    
+    const existingDocs = await getDb().collection('teachers').listDocuments();
+    existingDocs.forEach(doc => batch.delete(doc));
+    
+    data.forEach((item: any) => {
+      const docRef = getDb().collection('teachers').doc();
+      const { id, ...docData } = item;
+      batch.set(docRef, { ...docData, createdAt: new Date().toISOString() });
     });
 
     await batch.commit();
-    res.json({ message: 'معلمین با موفقیت ذخیره شدند.' });
+    
+    const snapshot = await getDb().collection('teachers').get();
+    const newItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json(newItems);
   } catch (error: any) {
-    console.error("Error in syncTeachers:", error);
+    console.error('Error in syncTeachers:', error);
     res.status(500).json({ message: 'خطا در ذخیره معلمین', error: error.message });
   }
 };
