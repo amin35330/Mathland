@@ -20,21 +20,14 @@ export const solveProblem = async (req: Request, res: Response) => {
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // ۳. ساختاردهی بدنه درخواست برای گوگل
-    const parts = [];
+    const userParts = [];
 
-    // دستورالعمل سیستمی و سوال کاربر را با هم ترکیب می‌کنیم
-    const fullPrompt = `
-      شما یک معلم ریاضی به نام "ریاضی‌یار" هستید.
-      ماموریت: حل مسائل ریاضی به زبان فارسی، به صورت مرحله به مرحله و بدون استفاده از فرمت لاتک ($).
-      پاسخ نهایی را در خط آخر بنویسید.
-      
-      سوال کاربر: ${prompt || (image ? "این تصویر را تحلیل کن و مسئله ریاضی آن را حل کن." : "سوال من را حل کن.")}
-    `;
-    parts.push({ text: fullPrompt });
+    // فقط سوال کاربر یا عکس در این بخش قرار می‌گیرد
+    userParts.push({ text: prompt || (image ? "این تصویر را تحلیل کن." : "سوال من را حل کن.") });
 
     if (image) {
       const cleanedBase64 = image.startsWith('data:') ? image.split(',')[1] : image;
-      parts.push({
+      userParts.push({
         inline_data: {
           mime_type: mimeType || 'image/jpeg',
           data: cleanedBase64
@@ -42,12 +35,25 @@ export const solveProblem = async (req: Request, res: Response) => {
       });
     }
 
-    // --- اصلاح مهم: اضافه کردن "role": "user" ---
+    // --- اصلاح نهایی و قطعی: ساختار صحیح درخواست ---
     const requestBody = {
       contents: [{ 
-        role: "user", // این فیلد حیاتی بود که جا افتاده بود
-        parts: parts 
+        role: "user",
+        parts: userParts 
       }],
+      // دستورالعمل سیستمی باید در این قسمت و با این ساختار باشد
+      system_instruction: {
+        parts: [
+          {
+            text: `شما یک معلم ریاضی به نام "ریاضی‌یار" هستید.
+            ماموریت: حل مسائل ریاضی به زبان فارسی، به صورت مرحله به مرحله و بدون استفاده از فرمت لاتک ($).
+            پاسخ نهایی را در خط آخر بنویسید.`
+          }
+        ]
+      },
+      generationConfig: {
+        temperature: 0.2,
+      }
     };
 
     // ۴. ارسال درخواست با fetch
