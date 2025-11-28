@@ -1,8 +1,8 @@
 import { Book, Teacher, Video, Paradox, Creator, Settings } from '../types';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+// اصلاح مهم: آدرس را به نسبی تغییر می‌دهیم
+const API_URL = '/api';
 
-// تابع کمکی برای درخواست‌ها
 const request = async (endpoint: string, options?: RequestInit) => {
   try {
     const response = await fetch(`${API_URL}${endpoint}`, {
@@ -13,7 +13,8 @@ const request = async (endpoint: string, options?: RequestInit) => {
     });
     
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `API Error: ${response.statusText}`);
     }
     
     return await response.json();
@@ -23,6 +24,7 @@ const request = async (endpoint: string, options?: RequestInit) => {
   }
 };
 
+// ... بقیه فایل بدون تغییر می‌ماند ...
 export const api = {
   // --- Books ---
   getBooks: () => request('/books'),
