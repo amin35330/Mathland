@@ -1,15 +1,18 @@
 import { Request, Response } from 'express';
-import { Settings, ISettings } from '../models/allModels';
+import { getDb } from '../config/db';
+import { Settings, ISettings } from '../models/allModels'; // ISettings به جای Settings
+import * as admin from 'firebase-admin';
 
 export const getSettings = async (req: Request, res: Response) => {
   try {
-    let settings = await Settings.findOne();
-    
-    // اگر سند تنظیماتی در دیتابیس وجود ندارد، یک سند پیش‌فرض با مقادیر کامل ایجاد کن
-    if (!settings) {
-      // این مقادیر پیش‌فرض باید با DEFAULT_SETTINGS در فرانت‌اند همخوانی داشته باشند
-      // و تمام فیلدهای required در شمای دیتابیس را پوشش دهند.
-      const defaultSettingsData: ISettings = {
+    const db = getDb();
+    const settingsCollection = db.collection('settings');
+    const snapshot = await settingsCollection.limit(1).get(); // همیشه فقط یک سند تنظیمات
+    let settings: Settings;
+
+    if (snapshot.empty) {
+      // ایجاد یک سند پیش‌فرض جدید اگر وجود نداشت
+      const defaultSettingsData: Settings = {
         appName: 'ریاضی‌یار',
         appLogoUrl: '',
         adminEmail: 'admin@riaziyar.ir',
@@ -19,12 +22,19 @@ export const getSettings = async (req: Request, res: Response) => {
         phone: '',
         copyrightText: '۱۴۰۴ ریاضی‌یار',
         apiKey: '',
-        // Mongoose automatically adds _id, createdAt, updatedAt
-        // So no need to define them here.
-      } as ISettings; // Cast to ISettings to ensure type compatibility
-
-      settings = await Settings.create(defaultSettingsData);
+        // Firestore automatically adds createdAt, updatedAt
+      };
+      const newDocRef = settingsCollection.doc(); // Firestore خودش ID می‌سازد
+      await newDocRef.set({ 
+        ...defaultSettingsData, 
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      settings = { id: newDocRef.id, ...defaultSettingsData };
       console.log('[settingsController]: Created initial default settings document.');
+    } else {
+      const doc = snapshot.docs[0];
+      settings = { id: doc.id, ...doc.data() } as Settings;
     }
     
     res.json(settings);
@@ -36,17 +46,33 @@ export const getSettings = async (req: Request, res: Response) => {
 
 export const updateSettings = async (req: Request, res: Response) => {
   try {
-    const newSettings = req.body;
+    const newSettings: Settings = req.body;
+    const db = getDb();
+    const settingsCollection = db.collection('settings');
+    const snapshot = await settingsCollection.limit(1).get();
+
+    let savedSettings: Settings;
+
+    if (snapshot.empty) {
+      // اگر سند تنظیمات نبود، یک سند جدید ایجاد کن
+      const newDocRef = settingsCollection.doc();
+      await newDocRef.set({ 
+        ...newSettings, 
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      savedSettings = { id: newDocRef.id, ...newSettings };
+    } else {
+      // اگر وجود داشت، آن را آپدیت کن
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update({ 
+        ...newSettings,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      savedSettings = { id: docRef.id, ...newSettings };
+    }
     
-    // از findOneAndUpdate استفاده می‌کنیم که هم سند را پیدا کند و هم آپدیت کند.
-    // اگر سندی پیدا نشد، یک سند جدید (upsert) با مقادیر جدید ایجاد می‌کند.
-    const saved = await Settings.findOneAndUpdate(
-      {}, // به دنبال هر سند تنظیماتی بگرد (چون فقط یکی داریم)
-      newSettings, // مقادیر جدید برای آپدیت
-      { new: true, upsert: true, runValidators: true } // new: سند جدید را برگردان. upsert: اگر نبود، بساز. runValidators: اعتبارسنجی شمای Mongoose را اجرا کن.
-    );
-    
-    res.json(saved);
+    res.json(savedSettings);
   } catch (error: any) {
     console.error("Error in updateSettings:", error);
     res.status(500).json({ message: 'خطا در ذخیره تنظیمات', error: error.message });

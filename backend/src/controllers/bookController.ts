@@ -1,28 +1,47 @@
 import { Request, Response } from 'express';
+import { getDb } from '../config/db';
 import { Book } from '../models/allModels';
+import * as admin from 'firebase-admin';
 
-// دریافت همه کتاب‌ها
 export const getBooks = async (req: Request, res: Response) => {
   try {
-    const books = await Book.find().sort({ createdAt: -1 });
+    const db = getDb();
+    const booksCollection = db.collection('books');
+    const snapshot = await booksCollection.orderBy('createdAt', 'desc').get();
+    const books = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
     res.json(books);
-  } catch (error) {
-    res.status(500).json({ message: 'خطا در دریافت کتاب‌ها' });
+  } catch (error: any) {
+    console.error("Error in getBooks:", error);
+    res.status(500).json({ message: 'خطا در دریافت کتاب‌ها', error: error.message });
   }
 };
 
-// افزودن یا آپدیت کتاب
 export const syncBooks = async (req: Request, res: Response) => {
   try {
-    const booksData = req.body; // آرایه‌ای از کتاب‌ها می‌آید
-    
-    // روش ساده: همه را پاک کن و جدیدها را بریز (برای هماهنگی کامل با فرانت)
-    // در روش حرفه‌ای‌تر باید یکی‌یکی آپدیت کرد، اما برای شروع این امن‌ترین روش است
-    await Book.deleteMany({});
-    const newBooks = await Book.insertMany(booksData);
-    
-    res.json(newBooks);
-  } catch (error) {
-    res.status(500).json({ message: 'خطا در ذخیره کتاب‌ها' });
+    const booksData: Book[] = req.body;
+    const db = getDb();
+    const batch = db.batch(); // برای عملیات انبوه
+
+    // 1. همه موارد قبلی را پاک کن
+    const currentBooks = await db.collection('books').get();
+    currentBooks.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    // 2. موارد جدید را اضافه کن
+    booksData.forEach(book => {
+      const newBookRef = db.collection('books').doc(); // Firestore خودش ID می‌سازد
+      batch.set(newBookRef, { 
+        ...book, 
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+    res.json({ message: 'کتاب‌ها با موفقیت ذخیره شدند.' });
+  } catch (error: any) {
+    console.error("Error in syncBooks:", error);
+    res.status(500).json({ message: 'خطا در ذخیره کتاب‌ها', error: error.message });
   }
 };

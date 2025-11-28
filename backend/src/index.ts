@@ -1,37 +1,36 @@
 import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import connectDB from './config/db';
+import connectFirebase from './config/db'; // حالا Firebase را متصل می‌کنیم
 import apiRoutes from './routes/apiRoutes';
 
+// متغیرهای محیطی را لود کن (مثل FIREBASE_SERVICE_ACCOUNT_KEY)
 dotenv.config();
 
+// اتصال به Firebase Firestore را راه‌اندازی کن
+connectFirebase();
+
 const app: Express = express();
+const port = process.env.PORT || 4000;
 
-// اتصال به دیتابیس برای هر درخواست
-connectDB();
-
-app.use(cors({ origin: '*' })); // دسترسی آزاد برای همه
+// Middleware
+app.use(cors({ origin: '*' })); 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// مسیرهای API
+// استفاده از مسیرهای API
 app.use('/api', apiRoutes);
 
-// مسیر اصلی برای تست
+// مسیر تست اصلی
 app.get('/', (req: Request, res: Response) => {
-  res.send('Riazi Land Backend is Running on Vercel!');
+  res.send('Riazi Land Backend API is Running on Vercel with Firestore!');
 });
 
-// --- بخش مهم برای Vercel ---
-// فقط اگر روی سیستم خودمان بودیم، سرور را روشن کن
-// در Vercel این قسمت اجرا نمی‌شود و خود ورسل مدیریت می‌کند
+// برای Vercel، اپ را اکسپورت می‌کنیم، نه اینکه سرور را روشن کنیم
 if (process.env.NODE_ENV !== 'production') {
-  const port = process.env.PORT || 4000;
   app.listen(port, () => {
     console.log(`[server]: Server is running at http://localhost:${port}`);
   });
 }
 
-// حتماً باید app را اکسپورت کنیم
 export default app;
