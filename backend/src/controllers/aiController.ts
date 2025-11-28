@@ -1,29 +1,20 @@
 import { Request, Response } from 'express';
 // @ts-ignore
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import admin from 'firebase-admin';
-
-const getDb = () => admin.firestore();
 
 export const solveProblem = async (req: Request, res: Response) => {
   try {
     const { prompt, image, mimeType } = req.body;
 
-    const snapshot = await getDb().collection('settings').limit(1).get();
-    
-    if (snapshot.empty) {
-        return res.status(500).json({ message: 'تنظیمات سایت در دیتابیس پیدا نشد.' });
-    }
-    
-    const settings = snapshot.docs[0].data();
-    if (!settings || !settings.apiKey) {
-      return res.status(400).json({ message: 'کلید API در پنل مدیریت تنظیم نشده است.' });
+    // --- اصلاح مهم: خواندن کلید API مستقیم از متغیرهای سرور ---
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is not defined on the server.");
+      return res.status(500).json({ message: 'کلید API هوش مصنوعی روی سرور تنظیم نشده است.' });
     }
 
-    // در نسخه‌های جدید، نام کلاس تغییر کرده است
-    const genAI = new GoogleGenerativeAI(settings.apiKey);
-    
-    // --- اصلاح نهایی: استفاده از نام مدل جدید و رسمی ---
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const parts: any[] = [];
@@ -58,8 +49,7 @@ export const solveProblem = async (req: Request, res: Response) => {
     res.status(200).json({ answer: text });
 
   } catch (error: any) {
-    console.error("--- FATAL AI ERROR ---");
-    console.error("FULL AI ERROR OBJECT:", error);
+    console.error("--- FATAL AI ERROR ---", error);
     
     if (error.message && error.message.includes('429')) {
        return res.status(429).json({ 
