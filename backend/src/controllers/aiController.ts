@@ -1,31 +1,27 @@
 import { Request, Response } from 'express';
 import admin from 'firebase-admin';
 
+// تابع کمکی برای دریافت دیتابیس
 const getDb = () => admin.firestore();
 
 export const solveProblem = async (req: Request, res: Response) => {
   try {
     const { prompt, image, mimeType } = req.body;
 
-    // خواندن کلید API از متغیرهای محیطی سرور
+    // ۱. خواندن کلید API از متغیرهای محیطی سرور
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      console.error("GEMINI_API_KEY is not defined on the server.");
       return res.status(500).json({ message: 'کلید API هوش مصنوعی روی سرور تنظیم نشده است.' });
     }
 
+    // ۲. تعیین مدل بر اساس وجود عکس
     const model = image ? "gemini-pro-vision" : "gemini-pro";
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const parts: any[] = [];
-
-    const systemInstruction = `
-      شما "ریاضی‌یار" هستید.
-      ماموریت: حل مسائل ریاضی به زبان فارسی، بدون استفاده از فرمت لاتک ($).
-      پاسخ نهایی را در خط آخر بنویسید.
-    `;
-
-    parts.push({ text: systemInstruction });
-    parts.push({ text: `\n\nسوال کاربر: ${prompt || (image ? "این تصویر را تحلیل کن." : "سوال من را حل کن.")}` });
+    // ۳. ساختاردهی بدنه درخواست برای گوگل
+    const parts = [];
+    parts.push({ text: `شما یک معلم ریاضی به نام "ریاضی‌یار" هستید. سوال زیر را به زبان فارسی و به صورت مرحله به مرحله حل کنید. از فرمت لاتک ($) استفاده نکنید. سوال: ${prompt || 'این تصویر را تحلیل کن'}` });
 
     if (image) {
       const cleanedBase64 = image.startsWith('data:') ? image.split(',')[1] : image;
@@ -39,26 +35,25 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     const requestBody = {
       contents: [{ parts }],
-      generationConfig: {
-        temperature: 0.2,
-      }
     };
 
+    // ۴. ارسال درخواست با fetch
     const apiResponse = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
     });
 
-    if (!apiResponse.ok) {
-      const errorData = await apiResponse.json();
-      console.error("Google API Error:", errorData);
-      throw new Error(errorData.error.message || 'خطا در ارتباط با سرور گوگل');
+    const responseData = await apiResponse.json();
+
+    // ۵. بررسی خطای احتمالی از طرف گوگل
+    if (!apiResponse.ok || !responseData.candidates || responseData.candidates.length === 0) {
+      console.error("Google API Error:", responseData);
+      throw new Error(responseData?.error?.message || 'پاسخ نامعتبر از سرور گوگل دریافت شد.');
     }
 
-    const responseData = await apiResponse.json();
+    // ۶. استخراج و ارسال پاسخ
     const text = responseData.candidates[0].content.parts[0].text;
-
     res.status(200).json({ answer: text });
 
   } catch (error: any) {
