@@ -13,11 +13,11 @@
   }
 
   .dark body {
-    @apply bg-slate-900 text-white;
+    @apply bg-slate-900 text-gray-200;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -25,5 +25,8 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary-300 rounded-full hover:bg-primary-500 dark:bg-primary-800;
+  @apply bg-primary-300 rounded-lg hover:bg-primary-500;
+}
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-primary-800 hover:bg-primary-700;
 }
