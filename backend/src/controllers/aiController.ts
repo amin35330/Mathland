@@ -1,19 +1,27 @@
 import { Request, Response } from 'express';
 // @ts-ignore
 import { GoogleGenAI } from "@google/genai";
-import { Settings } from '../models/allModels';
+import { Settings } from '../models/allModels'; // فقط Settings را ایمپورت می‌کنیم
+import { getDb } from '../config/db'; // برای دسترسی به Firestore
 
 export const solveProblem = async (req: Request, res: Response) => {
   try {
     const { prompt, image, mimeType } = req.body;
 
-    const settings = await Settings.findOne();
+    const db = getDb(); // دسترسی به Firestore
+    const settingsCollection = db.collection('settings'); // دریافت کالکشن تنظیمات
+    const settingsSnapshot = await settingsCollection.limit(1).get();
+    
+    let settings: Settings | null = null;
+    if (!settingsSnapshot.empty) {
+        settings = settingsSnapshot.docs[0].data() as Settings;
+    }
+
     if (!settings || !settings.apiKey) {
-      return res.status(400).json({ message: 'کلید API تنظیم نشده است.' });
+      return res.status(400).json({ message: 'کلید API هوش مصنوعی تنظیم نشده است. لطفاً از پنل مدیریت، کلید API را وارد کنید.' });
     }
 
     const ai = new GoogleGenAI({ apiKey: settings.apiKey });
-    // استفاده از مدل سریعتر برای جلوگیری از Timeout ورسل
     const modelId = 'gemini-1.5-flash'; 
 
     const parts: any[] = [];
@@ -69,7 +77,6 @@ export const solveProblem = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("AI Error:", error);
     
-    // مدیریت خطای محدودیت گوگل (429)
     if (error.message && error.message.includes('429')) {
        return res.json({ 
          answer: "سرور هوش مصنوعی شلوغ است (Too Many Requests). لطفاً یک دقیقه صبر کنید و دوباره امتحان کنید." 

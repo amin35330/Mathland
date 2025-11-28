@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { getDb } from '../config/db';
-import { Settings, ISettings } from '../models/allModels'; // ISettings به جای Settings
+import { Settings } from '../models/allModels'; // حالا فقط Settings را ایمپورت می‌کنیم
 import * as admin from 'firebase-admin';
 
 export const getSettings = async (req: Request, res: Response) => {
   try {
-    const db = getDb();
-    const settingsCollection = db.collection('settings');
+    const db = getDb(); // دسترسی به اینستنس Firestore
+    const settingsCollection = db.collection('settings'); // دریافت کالکشن 'settings'
     const snapshot = await settingsCollection.limit(1).get(); // همیشه فقط یک سند تنظیمات
     let settings: Settings;
 
@@ -22,7 +22,6 @@ export const getSettings = async (req: Request, res: Response) => {
         phone: '',
         copyrightText: '۱۴۰۴ ریاضی‌یار',
         apiKey: '',
-        // Firestore automatically adds createdAt, updatedAt
       };
       const newDocRef = settingsCollection.doc(); // Firestore خودش ID می‌سازد
       await newDocRef.set({ 
