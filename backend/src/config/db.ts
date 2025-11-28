@@ -1,66 +1,60 @@
-import * as admin from 'firebase-admin';
-import { Buffer } from 'buffer'; // برای دیکد کردن Base64
+import admin from 'firebase-admin';
 
-// اینترفیس برای فایل JSON سرویس اکانت
-interface ServiceAccount {
-  projectId?: string;
-  privateKeyId?: string;
-  privateKey?: string;
-  clientEmail?: string;
-  clientId?: string;
-  authUri?: string;
-  tokenUri?: string;
-  authProviderX509CertUrl?: string;
-  clientX509CertUrl?: string;
-  universeDomain?: string;
-}
-
-let db: admin.firestore.Firestore | null = null;
-
-const connectFirebase = () => {
-  if (db) {
-    console.log('[database]: Reusing existing Firestore instance.');
-    return db;
-  }
-
+const connectDB = () => {
   try {
-    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-
-    if (!serviceAccountBase64) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not defined or empty in environment variables.");
+    // جلوگیری از اتصال تکراری
+    if (admin.apps.length) {
+      return;
     }
 
-    // --- تغییر مهم: دیکد کردن رشته Base64 به JSON اصلی ---
-    const serviceAccountJsonString = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
-    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJsonString);
+    const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-    if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
-        throw new Error("Missing essential fields in FIREBASE_SERVICE_ACCOUNT_KEY after Base64 decode and JSON parse.");
+    if (!key) {
+      throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_KEY in environment variables');
     }
 
-    // این خط دیگر نیازی نیست چون فرض می‌کنیم Base64 دیکد شده و JSON معتبر است
-    // و کاراکترهای \n در private_key در خود فایل JSON به درستی ذخیره شده‌اند.
-    // اگر باز هم مشکلی بود، ممکن است نیاز باشد private_key را جداگانه replace کنیم.
-    // serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, '\n');
+    let serviceAccount: any;
+
+    // تلاش برای رمزگشایی از حالت Base64
+    try {
+      // اول فرض می‌کنیم Base64 است و دیکود می‌کنیم
+      const decodedBuffer = Buffer.from(key, 'base64').toString('utf-8');
+      // اگر خروجی شبیه JSON بود، پارس می‌کنیم
+      if (decodedBuffer.trim().startsWith('{')) {
+        serviceAccount = JSON.parse(decodedBuffer);
+      } else {
+        // اگر دیکود شد اما JSON نبود، شاید خودِ رشته اصلی JSON بوده
+        serviceAccount = JSON.parse(key);
+      }
+    } catch (error) {
+      // اگر Base64 نبود، تلاش می‌کنیم مستقیم پارس کنیم
+      try {
+        serviceAccount = JSON.parse(key);
+      } catch (jsonError) {
+        throw new Error('Failed to parse FIREBASE key. Ensure it is valid JSON or Base64 encoded JSON.');
+      }
+    }
+
+    // اصلاح فرمت کلید خصوصی (مشکل رایج در ورسل)
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
+    // بررسی نهایی فیلدهای ضروری
+    if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
+      throw new Error('Missing essential fields (project_id, client_email, private_key) in the service account key.');
+    }
 
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount)
+      credential: admin.credential.cert(serviceAccount),
     });
 
-    db = admin.firestore();
-    console.log('[database]: Firebase Firestore initialized successfully.');
-    return db;
+    console.log('[database]: Firebase Admin Initialized Successfully');
+
   } catch (error: any) {
-    console.error(`[database]: Failed to initialize Firebase: ${error.message}`);
-    throw new Error(`Firebase initialization failed: ${error.message}`);
+    console.error('[database]: Firebase Connection Error:', error.message);
+    // در محیط پروداکشن نباید پروسه را کامل بکشیم تا لاگ‌ها ثبت شوند
   }
 };
 
-export const getDb = () => {
-    if (!db) {
-        throw new Error("Firestore has not been initialized. Call connectFirebase first.");
-    }
-    return db;
-};
-
-export default connectFirebase;
+export default connectDB;
