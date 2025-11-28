@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 // @ts-ignore
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import admin from 'firebase-admin';
 
 const getDb = () => admin.firestore();
@@ -20,10 +20,11 @@ export const solveProblem = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'کلید API در پنل مدیریت تنظیم نشده است.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey: settings.apiKey });
+    // در نسخه‌های جدید، نام کلاس تغییر کرده است
+    const genAI = new GoogleGenerativeAI(settings.apiKey);
     
-    // --- اصلاح نهایی: استفاده از نام کامل و استاندارد مدل ---
-    const modelId = 'gemini-1.0-pro'; 
+    // --- اصلاح نهایی: استفاده از نام مدل جدید و رسمی ---
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const parts: any[] = [];
 
@@ -37,42 +38,22 @@ export const solveProblem = async (req: Request, res: Response) => {
       });
     }
 
-    const defaultPrompt = image 
-      ? "این تصویر را تحلیل کن و مسئله ریاضی آن را حل کن." 
-      : "سوال ریاضی من را حل کن.";
-
-    parts.push({
-      text: prompt ? prompt : defaultPrompt
-    });
-
-    const systemInstruction = `
+    const fullPrompt = `
       شما "ریاضی‌یار" هستید.
       ماموریت: حل مسائل ریاضی به زبان فارسی، بدون استفاده از فرمت لاتک ($).
       پاسخ نهایی را در خط آخر بنویسید.
+      
+      سوال کاربر: ${prompt || (image ? "این تصویر را تحلیل کن و مسئله ریاضی آن را حل کن." : "سوال ریاضی من را حل کن.")}
     `;
+    
+    parts.push({ text: fullPrompt });
 
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: { parts } as any,
-      config: {
-        temperature: 0.2,
-        systemInstruction: systemInstruction,
-      }
+    const result = await model.generateContent({
+        contents: [{ role: "user", parts }]
     });
 
-    let text = "متاسفانه پاسخی دریافت نشد. لطفاً دوباره تلاش کنید.";
-    
-    if (response) {
-       // @ts-ignore
-       if (typeof response.text === 'function') {
-           // @ts-ignore
-           text = response.text();
-       } else if ((response as any).text) {
-           text = (response as any).text;
-       } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
-           text = response.candidates[0].content.parts[0].text;
-       }
-    }
+    const response = result.response;
+    const text = response.text();
 
     res.status(200).json({ answer: text });
 
