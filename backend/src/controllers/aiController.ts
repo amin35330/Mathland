@@ -9,7 +9,6 @@ export const solveProblem = async (req: Request, res: Response) => {
   try {
     const { prompt, image, mimeType } = req.body;
 
-    // دریافت کلید API از فایربیس
     const snapshot = await getDb().collection('settings').limit(1).get();
     
     if (snapshot.empty) {
@@ -27,10 +26,13 @@ export const solveProblem = async (req: Request, res: Response) => {
     const parts: any[] = [];
 
     if (image) {
+      // --- اصلاح مهم: تمیز کردن رشته عکس Base64 ---
+      const cleanedBase64 = image.startsWith('data:') ? image.split(',')[1] : image;
+      
       parts.push({
         inlineData: {
           mimeType: mimeType || 'image/jpeg',
-          data: image
+          data: cleanedBase64 // استفاده از عکس تمیز شده
         }
       });
     }
@@ -67,7 +69,7 @@ export const solveProblem = async (req: Request, res: Response) => {
            text = response.text();
        } else if ((response as any).text) {
            text = (response as any).text;
-       } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
+       } else if (response.candidates && response.candidates[0]?.content?.parts?[0]?.text) {
            text = response.candidates[0].content.parts[0].text;
        }
     }
