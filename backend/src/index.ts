@@ -9,25 +9,25 @@ dotenv.config();
 const app: Express = express();
 connectDB();
 
-// --- اصلاح مهم: تنظیمات دقیق CORS ---
-const whitelist = [
-    'https://mathland-frontend.vercel.app', // آدرس سایت فرانت‌اند شما
-    'http://localhost:3000'                // برای تست در آینده روی کامپیوتر
-];
+// --- تنظیمات نهایی و قطعی CORS ---
+const whitelist = ['https://mathland-frontend.vercel.app'];
 
 const corsOptions: cors.CorsOptions = {
-    origin: (origin, callback) => {
-        // اگر آدرس درخواست‌کننده در لیست ما بود، اجازه بده
-        if (!origin || whitelist.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true,
+  origin: (origin, callback) => {
+    // اگر مبدا درخواست در لیست سفید بود یا اصلا مبدایی وجود نداشت (مثل درخواست مستقیم)
+    if (!origin || whitelist.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
 };
 
+// مرحله ۱: برای تمام درخواست‌های امنیتی OPTIONS، سریعا پاسخ موفق بده
+// این خط مهم‌ترین بخش برای حل مشکل است
+app.options('*', cors(corsOptions));
+
+// مرحله ۲: برای تمام درخواست‌های دیگر، از همان تنظیمات استفاده کن
 app.use(cors(corsOptions));
 // ------------------------------------
 
@@ -37,12 +37,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', apiRoutes);
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Riazi Land Backend is Running on Vercel!');
+  res.send('Riazi Land Backend is Running Correctly!');
 });
 
-// این قسمت برای Vercel استفاده نمی‌شود و لازم نیست باشد
-// export default app; // ورسل به صورت خودکار فایل را مدیریت می‌کند
-
-// اما برای سازگاری بهتر، این خط را اضافه می‌کنیم
-// این به ورسل کمک می‌کند ماژول را درست بشناسد
 module.exports = app;
