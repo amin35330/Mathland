@@ -21,7 +21,16 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     // ۳. ساختاردهی بدنه درخواست برای گوگل
     const parts = [];
-    parts.push({ text: `شما یک معلم ریاضی به نام "ریاضی‌یار" هستید. سوال زیر را به زبان فارسی و به صورت مرحله به مرحله حل کنید. از فرمت لاتک ($) استفاده نکنید. سوال: ${prompt || 'این تصویر را تحلیل کن'}` });
+
+    // دستورالعمل سیستمی و سوال کاربر را با هم ترکیب می‌کنیم
+    const fullPrompt = `
+      شما یک معلم ریاضی به نام "ریاضی‌یار" هستید.
+      ماموریت: حل مسائل ریاضی به زبان فارسی، به صورت مرحله به مرحله و بدون استفاده از فرمت لاتک ($).
+      پاسخ نهایی را در خط آخر بنویسید.
+      
+      سوال کاربر: ${prompt || (image ? "این تصویر را تحلیل کن و مسئله ریاضی آن را حل کن." : "سوال من را حل کن.")}
+    `;
+    parts.push({ text: fullPrompt });
 
     if (image) {
       const cleanedBase64 = image.startsWith('data:') ? image.split(',')[1] : image;
@@ -33,8 +42,12 @@ export const solveProblem = async (req: Request, res: Response) => {
       });
     }
 
+    // --- اصلاح مهم: اضافه کردن "role": "user" ---
     const requestBody = {
-      contents: [{ parts }],
+      contents: [{ 
+        role: "user", // این فیلد حیاتی بود که جا افتاده بود
+        parts: parts 
+      }],
     };
 
     // ۴. ارسال درخواست با fetch
