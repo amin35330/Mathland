@@ -1,36 +1,48 @@
 import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import connectFirebase from './config/db'; // حالا Firebase را متصل می‌کنیم
+import connectDB from './config/db';
 import apiRoutes from './routes/apiRoutes';
 
-// متغیرهای محیطی را لود کن (مثل FIREBASE_SERVICE_ACCOUNT_KEY)
 dotenv.config();
 
-// اتصال به Firebase Firestore را راه‌اندازی کن
-connectFirebase();
-
 const app: Express = express();
-const port = process.env.PORT || 4000;
+connectDB();
 
-// Middleware
-app.use(cors({ origin: '*' })); 
+// --- اصلاح مهم: تنظیمات دقیق CORS ---
+const whitelist = [
+    'https://mathland-frontend.vercel.app', // آدرس سایت فرانت‌اند شما
+    'http://localhost:3000'                // برای تست در آینده روی کامپیوتر
+];
+
+const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+        // اگر آدرس درخواست‌کننده در لیست ما بود، اجازه بده
+        if (!origin || whitelist.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: "GET,POST,PUT,DELETE",
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
+// ------------------------------------
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// استفاده از مسیرهای API
 app.use('/api', apiRoutes);
 
-// مسیر تست اصلی
 app.get('/', (req: Request, res: Response) => {
-  res.send('Riazi Land Backend API is Running on Vercel with Firestore!');
+  res.send('Riazi Land Backend is Running on Vercel!');
 });
 
-// برای Vercel، اپ را اکسپورت می‌کنیم، نه اینکه سرور را روشن کنیم
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => {
-    console.log(`[server]: Server is running at http://localhost:${port}`);
-  });
-}
-// آخرین تلاش برای فیکس شدن مشکل Firebase
-export default app;
+// این قسمت برای Vercel استفاده نمی‌شود و لازم نیست باشد
+// export default app; // ورسل به صورت خودکار فایل را مدیریت می‌کند
+
+// اما برای سازگاری بهتر، این خط را اضافه می‌کنیم
+// این به ورسل کمک می‌کند ماژول را درست بشناسد
+module.exports = app;
