@@ -5,12 +5,10 @@ import admin from 'firebase-admin';
 const getDbSafe = () => {
   try {
     if (admin.apps.length === 0) {
-      console.warn("Firebase app is not initialized yet.");
       return null;
     }
     return admin.firestore();
   } catch (e) {
-    console.error("Error accessing Firestore:", e);
     return null;
   }
 };
@@ -21,55 +19,50 @@ export const solveProblem = async (req: Request, res: Response) => {
   try {
     const { prompt, image, mimeType, providedKey } = req.body;
 
-    // ۱. اولویت اول: کلیدی که از سمت کاربر (پنل ادمین) آمده
+    // ۱. دریافت کلید (اولویت با ورودی کاربر، سپس دیتابیس، سپس Env)
     let apiKey = providedKey;
 
-    // ۲. اولویت دوم: خواندن از دیتابیس (فقط اگر کلید نیامده بود)
     if (!apiKey) {
       const db = getDbSafe();
       if (db) {
         try {
           const settingsSnapshot = await db.collection('settings').limit(1).get();
           if (!settingsSnapshot.empty) {
-            const settingsData = settingsSnapshot.docs[0].data();
-            if (settingsData.apiKey) {
-              apiKey = settingsData.apiKey;
-            }
+            apiKey = settingsSnapshot.docs[0].data().apiKey;
           }
         } catch (dbError) {
-          console.error("DB Read Error (Ignored):", dbError);
-          // اگر دیتابیس خطا داد، برنامه را متوقف نمی‌کنیم
+          console.error("DB Read Error (Ignored)");
         }
-      } else {
-        console.warn("Skipping DB check because Firebase is not connected.");
       }
     }
 
-    // ۳. اولویت سوم: متغیر محیطی
     if (!apiKey) {
       apiKey = process.env.GEMINI_API_KEY;
     }
 
-    // ۴. بررسی نهایی وجود کلید
     if (!apiKey) {
-      console.error("No API Key found anywhere.");
       return res.status(400).json({ 
-        message: 'کلید API یافت نشد. (ارتباط با دیتابیس هم برقرار نیست، لطفاً کلید را در پنل تست وارد کنید)' 
+        message: 'کلید API یافت نشد. لطفاً در پنل ادمین کلید را وارد کنید.' 
       });
     }
 
-    console.log("Using API Key ending in:", apiKey.slice(-4));
+    // ۲. تعیین مدل (بخش اصلاح شده)
+    // برای تست اتصال و متن‌های خالی، از gemini-pro استفاده می‌کنیم که پایدارترین است
+    let model = "gemini-pro";
+    
+    // اگر عکس داشتیم، مجبوریم از مدل ویژن استفاده کنیم
+    if (image) {
+        // سعی می‌کنیم از مدل فلش استفاده کنیم، اگر خطا داد در لاگ مشخص می‌شود
+        model = "gemini-1.5-flash-latest";
+    }
 
-    // ۵. تعیین مدل و آدرس
-    // مدل flash سریع‌تر و ارزان‌تر است
-    const model = image ? "gemini-1.5-flash" : "gemini-1.5-flash"; 
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    // ۶. آماده‌سازی درخواست برای گوگل
+    // ۳. آماده‌سازی درخواست
     const parts = [];
     const fullPrompt = `
-      نقش: معلم ریاضی فارسی زبان.
-      دستور: حل دقیق مسئله زیر بدون استفاده از لاتک ($).
+      نقش: معلم ریاضی.
+      دستور: حل مسئله زیر به زبان فارسی و بدون استفاده از لاتک ($).
       سوال: ${prompt || (image ? "تحلیل تصویر" : "تست اتصال")}
     `;
     parts.push({ text: fullPrompt });
@@ -84,8 +77,9 @@ export const solveProblem = async (req: Request, res: Response) => {
       });
     }
 
-    // ۷. ارسال به گوگل
-    console.log("Sending request to Google...");
+    // ۴. ارسال به گوگل
+    console.log(`Sending request to Google Model: ${model}`);
+    
     const apiResponse = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -96,28 +90,30 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     const responseData = await apiResponse.json();
 
-    // ۸. مدیریت خطای گوگل
+    // ۵. بررسی خطا
     if (!apiResponse.ok) {
       console.error("Google API Error:", JSON.stringify(responseData));
       const msg = responseData?.error?.message || 'خطای ناشناخته از گوگل';
-      return res.status(400).json({ message: `خطای گوگل: ${msg}` });
+      
+      // اگر باز هم خطا داد، راهنمایی دقیق‌تر برمی‌گردانیم
+      return res.status(400).json({ 
+          message: `خطای گوگل (${model}): ${msg}` 
+      });
     }
 
-    // ۹. ارسال پاسخ موفق
+    // ۶. ارسال پاسخ
     if (responseData.candidates && responseData.candidates.length > 0) {
       const text = responseData.candidates[0].content.parts[0].text;
       res.status(200).json({ answer: text });
     } else {
-      res.status(500).json({ message: 'پاسخ خالی از هوش مصنوعی دریافت شد.' });
+      res.status(500).json({ message: 'پاسخ خالی دریافت شد.' });
     }
 
   } catch (error: any) {
-    console.error("--- SERVER CRASH ---", error);
-    // این قسمت مهم‌ترین بخش برای دیباگ شماست
+    console.error("--- SERVER ERROR ---", error);
     res.status(500).json({ 
       message: 'خطای داخلی سرور', 
-      details: error.message,
-      stack: error.stack 
+      details: error.message 
     });
   }
 };
