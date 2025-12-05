@@ -9,141 +9,130 @@ const getDbSafe = () => {
 };
 
 export const solveProblem = async (req: Request, res: Response) => {
-  console.log("--- AI Request Started (Provider: OpenRouter Multi-Model) ---");
+  console.log("--- AI Request Started (Parallel Mode) ---");
   
   try {
     const { prompt, image, mimeType, providedKey } = req.body;
 
     // ۱. دریافت کلید API
     let apiKey = providedKey;
-
     if (!apiKey) {
       const db = getDbSafe();
       if (db) {
         try {
-          const settingsSnapshot = await db.collection('settings').limit(1).get();
-          if (!settingsSnapshot.empty) {
-            apiKey = settingsSnapshot.docs[0].data().apiKey;
-          }
-        } catch (e) { console.error("DB Read Error Ignored"); }
+          const snap = await db.collection('settings').limit(1).get();
+          if (!snap.empty) apiKey = snap.docs[0].data().apiKey;
+        } catch (e) {}
       }
     }
-
     if (!apiKey) apiKey = process.env.OPENROUTER_API_KEY;
-    if (apiKey) apiKey = apiKey.trim();
-
-    if (!apiKey) {
-      return res.status(400).json({ 
-        message: 'کلید API یافت نشد. لطفاً کلید OpenRouter را در پنل ادمین وارد کنید.' 
-      });
+    
+    if (!apiKey || apiKey.trim() === "") {
+      return res.status(400).json({ message: 'کلید API یافت نشد.' });
     }
 
-    // ۲. لیست مدل‌های قدرتمند و رایگان (به ترتیب اولویت)
-    // این لیست تضمین می‌کند اگر یکی قطع بود، بعدی کار کند
-    const models = [
-      "google/gemini-2.0-flash-exp:free",      // جدیدترین مدل گوگل (بسیار سریع و قوی)
-      "google/gemini-flash-1.5-8b:free",       // نسخه سبک گوگل
-      "google/gemini-flash-1.5",               // نسخه استاندارد گوگل
-      "meta-llama/llama-3.2-11b-vision-instruct:free", // مدل متا (که قبلا خطا داد)
-      "nousresearch/hermes-3-llama-3.1-405b:free", // یک مدل بسیار قوی دیگر
+    // ۲. تفکیک مدل‌ها (تخصصی کردن)
+    // مدل‌های بسیار سریع و رایگان برای تصویر
+    const visionModels = [
+      "google/gemini-flash-1.5-8b",       // فوق‌العاده سریع
+      "google/gemini-2.0-flash-exp:free", // جدید و قوی
+      "meta-llama/llama-3.2-11b-vision-instruct:free",
     ];
 
+    // مدل‌های بسیار سریع برای متن
+    const textModels = [
+      "google/gemini-flash-1.5-8b",
+      "google/gemini-2.0-flash-exp:free",
+      "meta-llama/llama-3.1-8b-instruct:free",
+    ];
+
+    // انتخاب لیست مناسب
+    const selectedModels = image ? visionModels : textModels;
+
     const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    let successResponse = null;
-    let lastError = null;
-    let usedModel = "";
 
-    // ۳. حلقه تلاش (Retry Loop)
-    for (const model of models) {
+    // ۳. آماده‌سازی بدنه درخواست (مشترک برای همه)
+    const messages: any[] = [];
+    const systemPrompt = `
+      شما "ریاضی‌یار" هستید.
+      وظیفه: حل مسائل ریاضی به زبان فارسی.
+      قوانین: پاسخ کوتاه، سریع، دقیق و بدون لاتک ($).
+    `;
+
+    const userContent: any[] = [];
+    const userText = prompt || (image ? "حل این مسئله تصویر" : "تست");
+    userContent.push({ type: "text", text: userText });
+
+    if (image) {
+      let imageUrl = image;
+      if (!image.startsWith('data:')) {
+         imageUrl = `data:${mimeType || 'image/jpeg'};base64,${image}`;
+      }
+      userContent.push({ type: "image_url", image_url: { url: imageUrl } });
+    }
+
+    messages.push({ role: "system", content: systemPrompt });
+    messages.push({ role: "user", content: userContent });
+
+    // ۴. تابع ارسال درخواست (برای استفاده در Promise)
+    const fetchFromModel = async (model: string) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // تایم‌اوت ۱۵ ثانیه برای هر مدل
+
       try {
-        // اگر عکس داریم و مدل فعلی متنی است، ردش کن (فعلا همه مدل‌های بالا ویژن دارند)
-        console.log(`Trying Model: ${model}...`);
-
-        const messages: any[] = [];
-        const systemPrompt = `
-          شما "ریاضی‌یار" هستید.
-          وظیفه: حل مسائل ریاضی به زبان فارسی.
-          قوانین: پاسخ تشریحی، ساده، بدون لاتک ($) و مرحله به مرحله باشد.
-        `;
-
-        const userContent: any[] = [];
-        const userText = prompt || (image ? "این مسئله ریاضی در تصویر را حل کن." : "تست اتصال.");
-        userContent.push({ type: "text", text: userText });
-
-        if (image) {
-          let imageUrl = image;
-          if (!image.startsWith('data:')) {
-             imageUrl = `data:${mimeType || 'image/jpeg'};base64,${image}`;
-          }
-          userContent.push({
-            type: "image_url",
-            image_url: { url: imageUrl }
-          });
-        }
-
-        messages.push({ role: "system", content: systemPrompt });
-        messages.push({ role: "user", content: userContent });
-
-        // تنظیم هدرها بسیار مهم است
-        const apiResponse = await fetch(API_URL, {
+        console.log(`Racing: ${model}...`);
+        const response = await fetch(API_URL, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://mathland.vercel.app', // آدرس سایت شما
+            'HTTP-Referer': 'https://mathland.vercel.app',
             'X-Title': 'Riazi Land'
           },
           body: JSON.stringify({
             model: model,
             messages: messages,
-            temperature: 0.2,
-            top_p: 1,
-            repetition_penalty: 1,
-          })
+            temperature: 0.2, // دقت بالا
+          }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
 
-        const responseData = await apiResponse.json();
-
-        // اگر خطا داد (مثل 400 یا 503)، برو سراغ مدل بعدی
-        if (!apiResponse.ok) {
-           const msg = responseData?.error?.message || apiResponse.statusText;
-           console.warn(`Model ${model} failed: ${msg}`);
-           lastError = `${model}: ${msg}`;
-           continue; 
-        }
-
-        // اگر پاسخ درست بود
-        if (responseData.choices && responseData.choices.length > 0) {
-          successResponse = responseData.choices[0].message.content;
-          usedModel = model;
-          console.log(`SUCCESS with ${model}`);
-          break; // خروج از حلقه
-        }
+        if (!response.ok) throw new Error(`Status ${response.status}`);
+        
+        const data = await response.json();
+        if (!data.choices || data.choices.length === 0) throw new Error("Empty response");
+        
+        return {
+            answer: data.choices[0].message.content,
+            model: model // برمی‌گردانیم تا بدانیم کدام برنده شد
+        };
 
       } catch (err: any) {
-        console.warn(`Network error with ${model}:`, err.message);
-        lastError = err.message;
+        clearTimeout(timeoutId);
+        throw new Error(`${model} failed: ${err.message}`);
       }
-    }
+    };
 
-    // ۴. نتیجه نهایی
-    if (successResponse) {
-      res.status(200).json({ 
-          answer: successResponse,
-          debug_model: usedModel // برای اینکه بدانیم کدام مدل جواب داد
-      });
-    } else {
-      console.error("All models failed.");
-      res.status(400).json({ 
-        message: `متاسفانه همه سرورهای هوش مصنوعی مشغول هستند. آخرین خطا: ${lastError}` 
-      });
+    // ۵. اجرای موازی (Promise.any)
+    // این دستور منتظر اولین موفقیت می‌ماند و بقیه را نادیده می‌گیرد
+    try {
+        const requests = selectedModels.map(model => fetchFromModel(model));
+        const winner = await Promise.any(requests);
+        
+        console.log(`🏆 Winner Model: ${winner.model}`);
+        res.status(200).json({ answer: winner.answer });
+
+    } catch (aggregateError: any) {
+        console.error("All models failed.");
+        res.status(500).json({ 
+            message: 'هیچ‌یک از سرورهای هوش مصنوعی پاسخ ندادند. لطفاً دوباره تلاش کنید.' 
+        });
     }
 
   } catch (error: any) {
-    console.error("--- SERVER FATAL ERROR ---", error);
-    res.status(500).json({ 
-      message: 'خطای داخلی سرور', 
-      details: error.message 
-    });
+    console.error("Server Error:", error);
+    res.status(500).json({ message: 'خطای داخلی سرور' });
   }
 };
