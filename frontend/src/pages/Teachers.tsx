@@ -1,17 +1,16 @@
-
 import React from 'react';
 import { useAppContext } from '../AppContext';
 import { Mail, Phone, Briefcase, User } from 'lucide-react';
 
 export const Teachers: React.FC = () => {
-  const { teachers } = useAppContext();
+  const { teachers, settings } = useAppContext();
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-black text-center text-gray-900 dark:text-white mb-12">
         <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-600">
           اساتید برتر
-        </span> ریاضی‌یار
+        </span> {settings.appName}
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-items-center">
@@ -45,7 +44,6 @@ export const Teachers: React.FC = () => {
               {/* BACK SIDE */}
               <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white p-8 flex flex-col justify-center text-center shadow-2xl border border-white/20 relative">
                 
-                {/* Decorative Pattern */}
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                 
                 <div className="relative z-10">
