@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, Upload, Loader2, Check, Settings, Activity } from 'lucide-react';
+import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, Upload, Loader2, Activity, Settings } from 'lucide-react';
 import { Book as BookType, Teacher as TeacherType, Video as VideoType, Paradox as ParadoxType, Settings as SettingsType, Creator as CreatorType } from '../types';
 import { validateApiKey } from '../services/geminiService';
 
 export const Admin: React.FC = () => {
   const { isAuthenticated, login, logout, books, teachers, videos, paradoxes, creators, settings, updateData, updateSettings } = useAppContext();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  
+  // Login State
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  
   const [activeTab, setActiveTab] = useState<'dashboard' | 'books' | 'teachers' | 'videos' | 'paradoxes' | 'settings'>('dashboard');
 
   // Modal State
@@ -46,13 +49,14 @@ export const Admin: React.FC = () => {
     setTempSettings(settings);
   }, [settings]);
 
-  // Login Logic
+  // --- Login Logic (Updated) ---
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'admin@admin.com' && password === 'admin') {
+    // بررسی دقیق نام کاربری و رمز عبور (حساس به حروف بزرگ و کوچک)
+    if (username === 'Admin' && password === 'Taraneh@123') {
       login();
     } else {
-      alert('ایمیل یا رمز عبور اشتباه است (demo: admin@admin.com / admin)');
+      alert('نام کاربری یا رمز عبور اشتباه است.');
     }
   };
 
@@ -107,9 +111,14 @@ export const Admin: React.FC = () => {
     setIsParadoxModalOpen(true);
   };
 
-  const openCreatorModal = (creator: CreatorType) => {
-    setNewCreator(creator);
-    setEditingId(creator.id); // Creators always exist, we edit them
+  const openCreatorModal = (creator?: CreatorType) => {
+    if (creator) {
+      setNewCreator(creator);
+      setEditingId(creator.id);
+    } else {
+      setNewCreator({ imageUrl: '' });
+      setEditingId(null);
+    }
     setIsCreatorModalOpen(true);
   };
 
@@ -148,7 +157,6 @@ export const Admin: React.FC = () => {
 
   // --- API Key Test ---
   const handleTestApiKey = async () => {
-    // حتی اگر کلید خالی باشد هم اجازه تست می‌دهیم تا ببینیم سرور چه می‌گوید
     setIsTestingKey(true);
     setKeyStatus('idle');
     setTestMessage('در حال ارسال درخواست تست به سرور...');
@@ -255,17 +263,27 @@ export const Admin: React.FC = () => {
 
   const handleSaveCreator = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCreator.name || !editingId) return;
+    if (!newCreator.name) return;
     
-    const updated = creators.map(c => c.id === editingId ? { ...c, ...newCreator } as CreatorType : c);
-    updateData('creators', updated);
+    if (editingId) {
+        const updated = creators.map(c => c.id === editingId ? { ...c, ...newCreator } as CreatorType : c);
+        updateData('creators', updated);
+    } else {
+        const item: CreatorType = {
+            id: Date.now().toString(),
+            name: newCreator.name!,
+            role: newCreator.role || 'سازنده',
+            bio: newCreator.bio || '',
+            imageUrl: newCreator.imageUrl || 'https://picsum.photos/200',
+        };
+        updateData('creators', [...creators, item]);
+    }
     closeModals();
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // مستقیم ذخیره می‌کنیم تا تداخل ایجاد نشود
       await updateSettings(tempSettings);
       alert('تنظیمات با موفقیت در سرور ذخیره شد.');
     } catch (error) {
@@ -276,13 +294,14 @@ export const Admin: React.FC = () => {
 
   // --- Delete Handlers ---
 
-  const deleteItem = (type: 'books' | 'teachers' | 'videos' | 'paradoxes', id: string) => {
+  const deleteItem = (type: 'books' | 'teachers' | 'videos' | 'paradoxes' | 'creators', id: string) => {
     if (window.confirm('آیا از حذف این آیتم اطمینان دارید؟')) {
       switch (type) {
         case 'books': updateData('books', books.filter(b => b.id !== id)); break;
         case 'teachers': updateData('teachers', teachers.filter(t => t.id !== id)); break;
         case 'videos': updateData('videos', videos.filter(v => v.id !== id)); break;
         case 'paradoxes': updateData('paradoxes', paradoxes.filter(p => p.id !== id)); break;
+        case 'creators': updateData('creators', creators.filter(c => c.id !== id)); break;
       }
     }
   };
@@ -297,11 +316,25 @@ export const Admin: React.FC = () => {
             </div>
           </div>
           <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">ورود به پنل مدیریت</h2>
-          <p className="text-center text-gray-500 mb-8 text-sm">اطلاعات ورود (demo: admin@admin.com / admin)</p>
+          <p className="text-center text-gray-500 mb-8 text-sm">لطفاً نام کاربری و رمز عبور را وارد کنید</p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="ایمیل" dir="ltr" />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="رمز عبور" dir="ltr" />
-            <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold">ورود</button>
+            <input 
+                type="text" 
+                value={username} 
+                onChange={e => setUsername(e.target.value)} 
+                className="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white" 
+                placeholder="نام کاربری (Admin)" 
+                dir="ltr" 
+            />
+            <input 
+                type="password" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                className="w-full p-3 rounded-lg border dark:border-gray-600 dark:bg-gray-700 dark:text-white" 
+                placeholder="رمز عبور" 
+                dir="ltr" 
+            />
+            <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 transition-colors">ورود</button>
           </form>
         </div>
       </div>
@@ -410,7 +443,7 @@ export const Admin: React.FC = () => {
 
                  {/* API KEY SECTION */}
                  <div className="col-span-1 md:col-span-2 space-y-2 border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
-                    <h3 className="font-bold text-lg text-primary-600 mb-2">تنظیمات هوش مصنوعی (Google Gemini)</h3>
+                    <h3 className="font-bold text-lg text-primary-600 mb-2">تنظیمات هوش مصنوعی (Google Gemini / OpenRouter)</h3>
                     <label className="text-sm font-bold dark:text-gray-300">کلید API (API Key)</label>
                     <div className="flex flex-col gap-2">
                         <div className="flex gap-2">
@@ -424,7 +457,7 @@ export const Admin: React.FC = () => {
                                 }} 
                                 className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono text-sm" 
                                 dir="ltr"
-                                placeholder="AIza..."
+                                placeholder="sk-or-..."
                             />
                             <button 
                                 type="button"
@@ -441,7 +474,6 @@ export const Admin: React.FC = () => {
                                 {isTestingKey ? 'در حال تست...' : 'تست اتصال'}
                             </button>
                         </div>
-                        {/* نمایش پیام نتیجه تست */}
                         {testMessage && (
                             <div className={`text-xs font-mono p-2 rounded border ${
                                 keyStatus === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 
@@ -485,23 +517,38 @@ export const Admin: React.FC = () => {
 
              {/* Creators Management */}
              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 className="font-bold text-lg text-primary-600 mb-4 border-b pb-2 flex items-center gap-2">
-                  <Users size={20} />
-                  مدیریت سازندگان (درباره ما)
-                </h3>
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="font-bold text-lg text-primary-600 flex items-center gap-2">
+                        <Users size={20} />
+                        مدیریت سازندگان (درباره ما)
+                    </h3>
+                    <button onClick={() => openCreatorModal()} className="bg-primary-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-primary-700 text-sm">
+                        <Plus size={16} /> افزودن سازنده
+                    </button>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    {creators.map(creator => (
-                     <div key={creator.id} className="flex items-center gap-4 p-4 border rounded-lg dark:border-gray-700">
-                        <img src={creator.imageUrl} alt={creator.name} className="w-16 h-16 rounded-full object-cover" />
+                     <div key={creator.id} className="flex items-center gap-4 p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                        <img src={creator.imageUrl} alt={creator.name} className="w-16 h-16 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-sm" />
                         <div className="flex-1">
                            <div className="font-bold dark:text-white">{creator.name}</div>
-                           <div className="text-xs text-gray-500">{creator.role}</div>
+                           <div className="text-xs text-gray-500 mb-1">{creator.role}</div>
+                           <div className="text-xs text-gray-400 line-clamp-1">{creator.bio}</div>
                         </div>
-                        <button onClick={() => openCreatorModal(creator)} className="p-2 text-blue-500 hover:bg-blue-50 rounded transition-colors">
-                           <Pencil size={18} />
-                        </button>
+                        <div className="flex flex-col gap-2">
+                            <button onClick={() => openCreatorModal(creator)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors" title="ویرایش">
+                                <Pencil size={18} />
+                            </button>
+                            <button onClick={() => deleteItem('creators', creator.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors" title="حذف">
+                                <Trash size={18} />
+                            </button>
+                        </div>
                      </div>
                    ))}
+                   {creators.length === 0 && (
+                       <div className="col-span-2 text-center text-gray-400 py-4">هنوز سازنده‌ای اضافه نشده است.</div>
+                   )}
                 </div>
              </div>
           </div>
@@ -749,25 +796,63 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
-      {/* Creator Modal */}
+      {/* Creator Modal (Updated) */}
       {isCreatorModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between mb-6">
-              <h3 className="text-xl font-bold dark:text-white">ویرایش سازنده</h3>
+              <h3 className="text-xl font-bold dark:text-white">{editingId ? 'ویرایش سازنده' : 'افزودن سازنده جدید'}</h3>
               <button onClick={closeModals}><X size={24} className="text-gray-400" /></button>
             </div>
             <form onSubmit={handleSaveCreator} className="space-y-4">
                <div className="flex flex-col items-center mb-4">
-                <div className="w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden relative bg-gray-100 dark:bg-gray-700 cursor-pointer" onClick={() => creatorFileInputRef.current?.click()}>
-                  {newCreator.imageUrl ? <img src={newCreator.imageUrl} className="w-full h-full object-cover" /> : <User className="text-gray-400" />}
+                <div className="w-32 h-32 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden relative bg-gray-100 dark:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" onClick={() => creatorFileInputRef.current?.click()}>
+                  {newCreator.imageUrl ? <img src={newCreator.imageUrl} className="w-full h-full object-cover" /> : <User className="text-gray-400" size={48} />}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity">
+                      <Upload className="text-white" size={24} />
+                  </div>
                 </div>
                 <input type="file" ref={creatorFileInputRef} className="hidden" onChange={(e) => handleImageUpload(e, setNewCreator)} accept="image/*" />
+                <span className="text-xs text-gray-500 mt-2">برای تغییر عکس کلیک کنید</span>
               </div>
-              <input placeholder="نام" value={newCreator.name || ''} onChange={e => setNewCreator({...newCreator, name: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-              <input placeholder="نقش / پایه" value={newCreator.role || ''} onChange={e => setNewCreator({...newCreator, role: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-              <textarea placeholder="بیوگرافی کوتاه" value={newCreator.bio || ''} onChange={e => setNewCreator({...newCreator, bio: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows={3} required />
-              <button className="w-full bg-primary-600 text-white py-2 rounded font-bold hover:bg-primary-700">ذخیره تغییرات</button>
+              
+              <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">نام و نام خانوادگی</label>
+                  <input 
+                    placeholder="مثال: علی رضایی" 
+                    value={newCreator.name || ''} 
+                    onChange={e => setNewCreator({...newCreator, name: e.target.value})} 
+                    className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
+                    required 
+                  />
+              </div>
+
+              <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">نقش / سمت</label>
+                  <input 
+                    placeholder="مثال: مدیر فنی" 
+                    value={newCreator.role || ''} 
+                    onChange={e => setNewCreator({...newCreator, role: e.target.value})} 
+                    className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
+                    required 
+                  />
+              </div>
+
+              <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">بیوگرافی کوتاه</label>
+                  <textarea 
+                    placeholder="توضیحات کوتاه درباره سازنده..." 
+                    value={newCreator.bio || ''} 
+                    onChange={e => setNewCreator({...newCreator, bio: e.target.value})} 
+                    className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
+                    rows={4} 
+                    required 
+                  />
+              </div>
+
+              <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 shadow-lg shadow-primary-600/20 transition-all transform hover:-translate-y-1">
+                {editingId ? 'ذخیره تغییرات' : 'افزودن سازنده'}
+              </button>
             </form>
           </div>
         </div>
