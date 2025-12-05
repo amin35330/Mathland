@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, BookOpen, User, PlayCircle, AlertTriangle, GraduationCap, Mic, MicOff, ClipboardPaste, Image as ImageIcon, X, ArrowLeft } from 'lucide-react';
+import { Send, Loader2, Sparkles, BookOpen, User, PlayCircle, AlertTriangle, GraduationCap, Mic, MicOff, ClipboardPaste, Image as ImageIcon, X, ArrowLeft, Terminal } from 'lucide-react';
 import { solveMathProblem } from '../services/geminiService';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../AppContext';
@@ -11,6 +10,8 @@ export const Home: React.FC = () => {
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // متغیر جدید برای ذخیره جزئیات فنی خطا
+  const [debugLog, setDebugLog] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   
   const { settings } = useAppContext();
@@ -93,27 +94,31 @@ export const Home: React.FC = () => {
     e.preventDefault();
     if (!input && !image) return;
     
+    // پاک کردن لاگ‌های قبلی
+    setDebugLog(null);
+    setError(null);
+    setResponse(null);
+
+    // بررسی اولیه
     if (!settings.apiKey) {
-        setError('کلید API تنظیم نشده است. لطفاً با مدیر سایت تماس بگیرید.');
+        const msg = 'کلید API تنظیم نشده است. لطفاً در پنل ادمین کلید را وارد کنید.';
+        setError(msg);
+        setDebugLog(`[Frontend Error]: ${msg}`);
         return;
     }
 
     setLoading(true);
-    setError(null);
-    setResponse(null);
 
     try {
       let base64Data = undefined;
       let mimeType = 'image/jpeg';
 
       if (image) {
-        // Extract proper mime type from data URL
         const match = image.match(/^data:(.+);base64,(.+)$/);
         if (match) {
           mimeType = match[1];
           base64Data = match[2];
         } else {
-          // Fallback
           base64Data = image.split(',')[1];
         }
       }
@@ -121,7 +126,10 @@ export const Home: React.FC = () => {
       const result = await solveMathProblem(input, base64Data, mimeType, settings.apiKey);
       setResponse(result);
     } catch (err: any) {
-      setError(err.message || 'خطایی رخ داد.');
+      // نمایش خطای کاربر پسند
+      setError('مشکلی در ارتباط با سرور پیش آمد.');
+      // نمایش خطای فنی کامل در باکس لاگ
+      setDebugLog(`[Detailed Error Log]\nTime: ${new Date().toLocaleTimeString()}\nMessage: ${err.message}\nStack: ${err.stack || 'N/A'}`);
     } finally {
       setLoading(false);
     }
@@ -135,8 +143,6 @@ export const Home: React.FC = () => {
   return (
     <div className="relative font-sans selection:bg-primary-200 selection:text-primary-900">
       
-      {/* Background is now handled in Layout via AnimatedBackground component */}
-
       <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16 relative z-10">
         
         {/* Hero Header */}
@@ -245,10 +251,25 @@ export const Home: React.FC = () => {
           <div className="text-center mt-4 text-gray-500 dark:text-gray-400 text-sm flex justify-center gap-6">
              <span className="flex items-center gap-1"><ClipboardPaste size={14}/> چسباندن تصویر فعال</span>
           </div>
+
+          {/* --- DEBUG LOG BOX (NEW) --- */}
+          {debugLog && (
+            <div className="mt-8 animate-in slide-in-from-top-4">
+                <div className="bg-gray-900 text-green-400 p-4 rounded-xl border border-gray-700 shadow-2xl font-mono text-xs md:text-sm overflow-x-auto text-left dir-ltr relative">
+                    <div className="flex items-center gap-2 mb-2 border-b border-gray-700 pb-2 text-gray-400">
+                        <Terminal size={16} />
+                        <span className="font-bold">System Debug Log</span>
+                    </div>
+                    <pre className="whitespace-pre-wrap break-all">{debugLog}</pre>
+                </div>
+            </div>
+          )}
+          {/* --------------------------- */}
+
         </div>
 
-        {/* Error Alert */}
-        {error && (
+        {/* Error Alert (Simple) */}
+        {error && !debugLog && (
           <div className="max-w-4xl mx-auto mt-8 animate-in slide-in-from-top-2">
             <div className="bg-red-50 dark:bg-red-900/30 border-r-4 border-red-500 p-4 rounded-xl flex items-center gap-3">
               <AlertTriangle className="text-red-500 flex-shrink-0" />

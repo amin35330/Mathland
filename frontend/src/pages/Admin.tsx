@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, Upload, Loader2, Check, Settings } from 'lucide-react';
+import { Lock, Plus, Trash, LayoutDashboard, Book, User, X, Image as ImageIcon, PlayCircle, MonitorPlay, HelpCircle, Pencil, Users, Upload, Loader2, Check, Settings, Activity } from 'lucide-react';
 import { Book as BookType, Teacher as TeacherType, Video as VideoType, Paradox as ParadoxType, Settings as SettingsType, Creator as CreatorType } from '../types';
 import { validateApiKey } from '../services/geminiService';
 
@@ -33,6 +33,7 @@ export const Admin: React.FC = () => {
   // API Key Test State
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [keyStatus, setKeyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const teacherFileInputRef = useRef<HTMLInputElement>(null);
@@ -147,20 +148,22 @@ export const Admin: React.FC = () => {
 
   // --- API Key Test ---
   const handleTestApiKey = async () => {
-    if (!tempSettings.apiKey) return;
+    // حتی اگر کلید خالی باشد هم اجازه تست می‌دهیم تا ببینیم سرور چه می‌گوید
     setIsTestingKey(true);
     setKeyStatus('idle');
+    setTestMessage('در حال ارسال درخواست تست به سرور...');
+    
     try {
-        const isValid = await validateApiKey(tempSettings.apiKey);
-        setKeyStatus(isValid ? 'success' : 'error');
-        if (!isValid) alert('کلید API معتبر نیست یا اتصال برقرار نشد.');
-    } catch (e) {
+        const result = await validateApiKey(tempSettings.apiKey);
+        setKeyStatus(result.success ? 'success' : 'error');
+        setTestMessage(result.message);
+    } catch (e: any) {
         setKeyStatus('error');
+        setTestMessage(e.message || 'خطای ناشناخته در تست');
     } finally {
         setIsTestingKey(false);
     }
   };
-
 
   // --- Save Handlers ---
 
@@ -409,19 +412,44 @@ export const Admin: React.FC = () => {
                  <div className="col-span-1 md:col-span-2 space-y-2 border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
                     <h3 className="font-bold text-lg text-primary-600 mb-2">تنظیمات هوش مصنوعی (Google Gemini)</h3>
                     <label className="text-sm font-bold dark:text-gray-300">کلید API (API Key)</label>
-                    <div className="flex gap-2">
-                        <input 
-                            type="password" 
-                            value={tempSettings.apiKey || ''} 
-                            onChange={e => {
-                                setTempSettings({...tempSettings, apiKey: e.target.value});
-                                setKeyStatus('idle');
-                            }} 
-                            className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono text-sm" 
-                            dir="ltr"
-                            placeholder="AIza..."
-                        />
-                        {/* دکمه تست حذف شد تا در ذخیره اختلال ایجاد نکند */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <input 
+                                type="password" 
+                                value={tempSettings.apiKey || ''} 
+                                onChange={e => {
+                                    setTempSettings({...tempSettings, apiKey: e.target.value});
+                                    setKeyStatus('idle');
+                                    setTestMessage('');
+                                }} 
+                                className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono text-sm" 
+                                dir="ltr"
+                                placeholder="AIza..."
+                            />
+                            <button 
+                                type="button"
+                                onClick={handleTestApiKey}
+                                disabled={isTestingKey}
+                                className={`px-4 py-2 rounded font-bold text-white flex items-center gap-2 transition-all ${
+                                    isTestingKey ? 'bg-gray-400' : 
+                                    keyStatus === 'success' ? 'bg-green-500' :
+                                    keyStatus === 'error' ? 'bg-red-500' :
+                                    'bg-blue-500 hover:bg-blue-600'
+                                }`}
+                            >
+                                {isTestingKey ? <Loader2 className="animate-spin" size={18} /> : <Activity size={18} />}
+                                {isTestingKey ? 'در حال تست...' : 'تست اتصال'}
+                            </button>
+                        </div>
+                        {/* نمایش پیام نتیجه تست */}
+                        {testMessage && (
+                            <div className={`text-xs font-mono p-2 rounded border ${
+                                keyStatus === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                keyStatus === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-50'
+                            }`}>
+                                {testMessage}
+                            </div>
+                        )}
                     </div>
                  </div>
 
