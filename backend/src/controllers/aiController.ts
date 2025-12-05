@@ -9,7 +9,7 @@ const getDbSafe = () => {
 };
 
 export const solveProblem = async (req: Request, res: Response) => {
-  console.log("--- AI Request Started (Provider: OpenRouter) ---");
+  console.log("--- AI Request Started (Provider: OpenRouter Multi-Model) ---");
   
   try {
     const { prompt, image, mimeType, providedKey } = req.body;
@@ -29,8 +29,7 @@ export const solveProblem = async (req: Request, res: Response) => {
       }
     }
 
-    // پشتیبانی از متغیرهای محیطی مختلف
-    if (!apiKey) apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) apiKey = process.env.OPENROUTER_API_KEY;
     if (apiKey) apiKey = apiKey.trim();
 
     if (!apiKey) {
@@ -39,35 +38,36 @@ export const solveProblem = async (req: Request, res: Response) => {
       });
     }
 
-    // ۲. لیست مدل‌های رایگان OpenRouter (به ترتیب اولویت)
-    // این مدل‌ها هم متن و هم تصویر را پشتیبانی می‌کنند
+    // ۲. لیست مدل‌های قدرتمند و رایگان (به ترتیب اولویت)
+    // این لیست تضمین می‌کند اگر یکی قطع بود، بعدی کار کند
     const models = [
-      "google/gemini-2.0-flash-exp:free", // جدیدترین و سریعترین مدل گوگل (رایگان)
-      "google/gemini-flash-1.5-8b:free",  // نسخه سبک گوگل
-      "meta-llama/llama-3.2-11b-vision-instruct:free", // مدل متا (عالی برای تصویر)
+      "google/gemini-2.0-flash-exp:free",      // جدیدترین مدل گوگل (بسیار سریع و قوی)
+      "google/gemini-flash-1.5-8b:free",       // نسخه سبک گوگل
+      "google/gemini-flash-1.5",               // نسخه استاندارد گوگل
+      "meta-llama/llama-3.2-11b-vision-instruct:free", // مدل متا (که قبلا خطا داد)
+      "nousresearch/hermes-3-llama-3.1-405b:free", // یک مدل بسیار قوی دیگر
     ];
 
     const API_URL = "https://openrouter.ai/api/v1/chat/completions";
     let successResponse = null;
     let lastError = null;
+    let usedModel = "";
 
-    // ۳. حلقه تلاش هوشمند
+    // ۳. حلقه تلاش (Retry Loop)
     for (const model of models) {
       try {
-        console.log(`Attempting with OpenRouter Model: ${model}`);
+        // اگر عکس داریم و مدل فعلی متنی است، ردش کن (فعلا همه مدل‌های بالا ویژن دارند)
+        console.log(`Trying Model: ${model}...`);
 
         const messages: any[] = [];
         const systemPrompt = `
           شما "ریاضی‌یار" هستید.
-          وظیفه: حل مسائل ریاضی تا سطح پایه نهم (متوسطه اول) به زبان فارسی.
-          قوانین:
-          1. پاسخ باید کاملاً تشریحی و مرحله به مرحله باشد.
-          2. از فرمت لاتک ($) استفاده نکنید.
-          3. با لحنی ساده و آموزشی توضیح دهید.
+          وظیفه: حل مسائل ریاضی به زبان فارسی.
+          قوانین: پاسخ تشریحی، ساده، بدون لاتک ($) و مرحله به مرحله باشد.
         `;
 
         const userContent: any[] = [];
-        const userText = prompt || (image ? "لطفاً این مسئله ریاضی در تصویر را حل کن." : "تست اتصال.");
+        const userText = prompt || (image ? "این مسئله ریاضی در تصویر را حل کن." : "تست اتصال.");
         userContent.push({ type: "text", text: userText });
 
         if (image) {
@@ -84,35 +84,40 @@ export const solveProblem = async (req: Request, res: Response) => {
         messages.push({ role: "system", content: systemPrompt });
         messages.push({ role: "user", content: userContent });
 
+        // تنظیم هدرها بسیار مهم است
         const apiResponse = await fetch(API_URL, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://mathland.ir', // الزامی برای OpenRouter
+            'HTTP-Referer': 'https://mathland.vercel.app', // آدرس سایت شما
             'X-Title': 'Riazi Land'
           },
           body: JSON.stringify({
             model: model,
             messages: messages,
-            temperature: 0.2, // دقت بالا برای ریاضی
+            temperature: 0.2,
+            top_p: 1,
+            repetition_penalty: 1,
           })
         });
 
         const responseData = await apiResponse.json();
 
+        // اگر خطا داد (مثل 400 یا 503)، برو سراغ مدل بعدی
         if (!apiResponse.ok) {
-           // اگر خطا داد، مدل بعدی را امتحان کن
            const msg = responseData?.error?.message || apiResponse.statusText;
            console.warn(`Model ${model} failed: ${msg}`);
-           lastError = msg;
+           lastError = `${model}: ${msg}`;
            continue; 
         }
 
+        // اگر پاسخ درست بود
         if (responseData.choices && responseData.choices.length > 0) {
           successResponse = responseData.choices[0].message.content;
-          console.log(`Success with ${model}`);
-          break; // موفقیت! خروج از حلقه
+          usedModel = model;
+          console.log(`SUCCESS with ${model}`);
+          break; // خروج از حلقه
         }
 
       } catch (err: any) {
@@ -123,10 +128,14 @@ export const solveProblem = async (req: Request, res: Response) => {
 
     // ۴. نتیجه نهایی
     if (successResponse) {
-      res.status(200).json({ answer: successResponse });
+      res.status(200).json({ 
+          answer: successResponse,
+          debug_model: usedModel // برای اینکه بدانیم کدام مدل جواب داد
+      });
     } else {
+      console.error("All models failed.");
       res.status(400).json({ 
-        message: `اتصال به هیچ‌یک از مدل‌ها برقرار نشد. آخرین خطا: ${lastError}` 
+        message: `متاسفانه همه سرورهای هوش مصنوعی مشغول هستند. آخرین خطا: ${lastError}` 
       });
     }
 
