@@ -2,14 +2,15 @@
 import { Book, Paradox, Teacher, Video, Creator, Settings } from "./types";
 
 export const INITIAL_SETTINGS: Settings = {
-  appName: 'ریاضی‌یار',
+  appName: 'قهرمان ریاضی',
   appLogoUrl: '', // Empty means use default icon
-  adminEmail: 'admin@riaziyar.ir',
+  adminEmail: 'Info@MathHero.ir',
   eitaaLink: 'https://eitaa.com/',
   rubikaLink: 'https://rubika.ir/',
-  address: 'تهران، میدان آزادی، دانشگاه شریف',
-  phone: '021-66000000',
-  copyrightText: '۱۴۰۴ ریاضی‌یار، تمامی حقوق سایت متعلق به ترانه سادات موسوی و فاطمه شیرعلی پور می‌باشد.',
+  address: 'مارلیک - مدرسه هیئت امنایی فرزانگان',
+  phone: '021-40668127
+',
+  copyrightText: 'MathHero.ir@2026 - Design By Taraneh Mousavi & Fatemeh Shiralikhanloo',
   apiKey: ''
 };
 
