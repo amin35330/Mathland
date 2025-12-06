@@ -10,21 +10,27 @@ const app: Express = express();
 connectDB();
 
 // --- تنظیمات نهایی و قطعی CORS ---
-const whitelist = ['https://mathland-frontend.vercel.app'];
+// دامنه‌های مجاز (دامنه پیش‌فرض ورسل + دامنه شخصی شما)
+const whitelist = [
+  'https://mathland-frontend.vercel.app',
+  'https://mathhero.ir',
+  'https://www.mathhero.ir'
+];
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // اگر مبدا درخواست در لیست سفید بود یا اصلا مبدایی وجود نداشت (مثل درخواست مستقیم)
+    // اگر مبدا درخواست در لیست سفید بود یا اصلا مبدایی وجود نداشت (مثل درخواست مستقیم یا سرور به سرور)
     if (!origin || whitelist.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.warn(`Blocked by CORS: ${origin}`); // لاگ برای دیباگ بهتر
       callback(new Error('Not allowed by CORS'));
     }
   },
+  credentials: true, // اجازه ارسال کوکی و هدرهای احراز هویت
 };
 
 // مرحله ۱: برای تمام درخواست‌های امنیتی OPTIONS، سریعا پاسخ موفق بده
-// این خط مهم‌ترین بخش برای حل مشکل است
 app.options('*', cors(corsOptions));
 
 // مرحله ۲: برای تمام درخواست‌های دیگر، از همان تنظیمات استفاده کن
