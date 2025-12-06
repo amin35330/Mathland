@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Calendar, Sun, Activity, TrendingUp } from 'lucide-react';
+import { Calendar, Sun, TrendingUp } from 'lucide-react';
 import { api } from '../services/api';
 import { Stats } from '../types';
 
@@ -33,7 +33,8 @@ export const VisitorStats: React.FC = () => {
   if (loading) return null;
 
   return (
-    <div className="w-full max-w-3xl mx-auto mt-24 mb-12 px-4 animate-in slide-in-from-bottom-8 duration-1000">
+    // تغییرات: mt-24 به mt-40 افزایش یافت (برای پایین رفتن) | mb-12 به mb-20 افزایش یافت (فاصله از فوتر)
+    <div className="w-full max-w-3xl mx-auto mt-40 mb-20 px-4 animate-in slide-in-from-bottom-8 duration-1000">
       {/* Container: Capsule Shape */}
       <div className="relative bg-white/30 dark:bg-gray-900/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] px-4 py-3 md:px-8 md:py-4 group hover:shadow-[0_20px_50px_-10px_rgba(124,58,237,0.2)] transition-all duration-500">
         
@@ -48,7 +49,8 @@ export const VisitorStats: React.FC = () => {
               <Sun size={18} />
             </div>
             <div className="flex flex-col md:flex-row md:items-baseline gap-1">
-                <span className="text-xl font-black text-gray-800 dark:text-white font-mono">
+                {/* تغییر: font-mono حذف شد تا فونت وزیرمتن اعمال شود */}
+                <span className="text-xl font-black text-gray-800 dark:text-white">
                   {stats.daily.toLocaleString('fa-IR')}
                 </span>
                 <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300 opacity-80">امروز</span>
@@ -61,7 +63,8 @@ export const VisitorStats: React.FC = () => {
               <Calendar size={18} />
             </div>
             <div className="flex flex-col md:flex-row md:items-baseline gap-1">
-                <span className="text-xl font-black text-gray-800 dark:text-white font-mono">
+                {/* تغییر: font-mono حذف شد */}
+                <span className="text-xl font-black text-gray-800 dark:text-white">
                   {stats.monthly.toLocaleString('fa-IR')}
                 </span>
                 <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300 opacity-80">این ماه</span>
@@ -74,7 +77,8 @@ export const VisitorStats: React.FC = () => {
               <TrendingUp size={18} />
             </div>
             <div className="flex flex-col md:flex-row md:items-baseline gap-1">
-                <span className="text-xl font-black text-gray-800 dark:text-white font-mono">
+                {/* تغییر: font-mono حذف شد */}
+                <span className="text-xl font-black text-gray-800 dark:text-white">
                   {stats.total.toLocaleString('fa-IR')}
                 </span>
                 <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300 opacity-80">کل بازدید</span>
