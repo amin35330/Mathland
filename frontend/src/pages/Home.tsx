@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Sparkles, BookOpen, User, PlayCircle, AlertTriangle, GraduationCap, Mic, MicOff, ClipboardPaste, Image as ImageIcon, X, ArrowLeft, Terminal } from 'lucide-react';
-import { solveMathProblem } from '../services/geminiService';
+import { solveProblem } from '../services/geminiService';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../AppContext';
+import { VisitorStats } from '../components/VisitorStats'; // اضافه شد
 
 export const Home: React.FC = () => {
   const [input, setInput] = useState('');
@@ -10,7 +11,6 @@ export const Home: React.FC = () => {
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // متغیر جدید برای ذخیره جزئیات فنی خطا
   const [debugLog, setDebugLog] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   
@@ -19,7 +19,6 @@ export const Home: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Handle Paste Event for Images
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
@@ -94,12 +93,10 @@ export const Home: React.FC = () => {
     e.preventDefault();
     if (!input && !image) return;
     
-    // پاک کردن لاگ‌های قبلی
     setDebugLog(null);
     setError(null);
     setResponse(null);
 
-    // بررسی اولیه
     if (!settings.apiKey) {
         const msg = 'کلید API تنظیم نشده است. لطفاً در پنل ادمین کلید را وارد کنید.';
         setError(msg);
@@ -123,12 +120,10 @@ export const Home: React.FC = () => {
         }
       }
 
-      const result = await solveMathProblem(input, base64Data, mimeType, settings.apiKey);
+      const result = await solveProblem(input, base64Data, mimeType, settings.apiKey);
       setResponse(result);
     } catch (err: any) {
-      // نمایش خطای کاربر پسند
       setError('مشکلی در ارتباط با سرور پیش آمد.');
-      // نمایش خطای فنی کامل در باکس لاگ
       setDebugLog(`[Detailed Error Log]\nTime: ${new Date().toLocaleTimeString()}\nMessage: ${err.message}\nStack: ${err.stack || 'N/A'}`);
     } finally {
       setLoading(false);
@@ -187,7 +182,6 @@ export const Home: React.FC = () => {
                     dir="rtl"
                   />
 
-                  {/* Image Preview */}
                   {image && (
                     <div className="px-6 pb-4">
                       <div className="relative inline-block group">
@@ -203,7 +197,6 @@ export const Home: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Toolbar */}
                   <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-200/50 dark:border-gray-700/50 mx-2">
                     <div className="flex gap-2">
                        <button
@@ -252,7 +245,6 @@ export const Home: React.FC = () => {
              <span className="flex items-center gap-1"><ClipboardPaste size={14}/> چسباندن تصویر فعال</span>
           </div>
 
-          {/* --- DEBUG LOG BOX (NEW) --- */}
           {debugLog && (
             <div className="mt-8 animate-in slide-in-from-top-4">
                 <div className="bg-gray-900 text-green-400 p-4 rounded-xl border border-gray-700 shadow-2xl font-mono text-xs md:text-sm overflow-x-auto text-left dir-ltr relative">
@@ -264,11 +256,9 @@ export const Home: React.FC = () => {
                 </div>
             </div>
           )}
-          {/* --------------------------- */}
 
         </div>
 
-        {/* Error Alert (Simple) */}
         {error && !debugLog && (
           <div className="max-w-4xl mx-auto mt-8 animate-in slide-in-from-top-2">
             <div className="bg-red-50 dark:bg-red-900/30 border-r-4 border-red-500 p-4 rounded-xl flex items-center gap-3">
@@ -278,7 +268,6 @@ export const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Answer Section */}
         {response && (
           <div className="max-w-4xl mx-auto mt-16 animate-in slide-in-from-bottom-8 duration-700 relative z-10">
             <div className="absolute inset-0 bg-gradient-to-r from-primary-200 to-accent-200 blur-3xl opacity-40 -z-10"></div>
@@ -312,7 +301,7 @@ export const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Features - Redesigned */}
+        {/* Quick Features */}
         <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
           
           <Link to="/books" className="group relative bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl p-1 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-white/40 dark:border-white/10">
@@ -375,6 +364,9 @@ export const Home: React.FC = () => {
             </div>
           </Link>
         </div>
+
+        {/* --- Visitor Stats (New Section) --- */}
+        <VisitorStats />
 
       </div>
     </div>

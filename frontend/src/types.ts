@@ -1,4 +1,3 @@
-
 export interface Book {
   id: string;
   title: string;
@@ -13,8 +12,8 @@ export interface Book {
 export interface Teacher {
   id: string;
   name: string;
-  bio: string; // توضیحات
-  experience: string; // سابقه کاری
+  bio: string; 
+  experience: string; 
   imageUrl: string;
   phone: string;
   email: string;
@@ -40,7 +39,7 @@ export interface Paradox {
 export interface Creator {
   id: string;
   name: string;
-  role: string; // پایه / نقش
+  role: string; 
   bio: string;
   imageUrl: string;
 }
@@ -55,6 +54,13 @@ export interface Settings {
   phone: string;
   copyrightText: string;
   apiKey: string;
+}
+
+// --- اضافه شد ---
+export interface Stats {
+  total: number;
+  monthly: number;
+  daily: number;
 }
 
 export interface ChatMessage {

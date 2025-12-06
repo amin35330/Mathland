@@ -7,8 +7,9 @@ import {
   getCreators, syncCreators 
 } from '../controllers/contentController';
 import { getSettings, updateSettings } from '../controllers/settingsController';
-// --- اضافه شد ---
 import { solveProblem } from '../controllers/aiController'; 
+// --- اضافه شد ---
+import { getStats, recordVisit } from '../controllers/statsController';
 
 const router = express.Router();
 
@@ -30,7 +31,10 @@ router.post('/creators', syncCreators);
 router.get('/settings', getSettings);
 router.post('/settings', updateSettings);
 
-// --- مسیر جدید ---
 router.post('/ai/solve', solveProblem);
+
+// --- مسیرهای آمار ---
+router.get('/stats', getStats);
+router.post('/stats/visit', recordVisit);
 
 export default router;

@@ -1,13 +1,11 @@
-import { Book, Teacher, Video, Paradox, Creator, Settings } from '../types';
+import { Book, Teacher, Video, Paradox, Creator, Settings, Stats } from '../types';
 
-// مهم: آدرس بک‌اند را از متغیرهای محیطی می‌خوانیم
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const request = async (endpoint: string, options?: RequestInit) => {
   try {
-    // اگر آدرس بک‌اند تعریف نشده بود، خطا بده
     if (!API_URL) {
-      throw new Error("VITE_API_BASE_URL is not defined. Please check your environment variables in Vercel.");
+      throw new Error("VITE_API_BASE_URL is not defined.");
     }
 
     const response = await fetch(`${API_URL}${endpoint}`, {
@@ -22,7 +20,6 @@ const request = async (endpoint: string, options?: RequestInit) => {
       throw new Error(errorData.message || `API Error: ${response.status}`);
     }
     
-    // اگر پاسخ محتوایی نداشت (مثل status 204)، یک آبجکت خالی برگردان
     if (response.status === 204) {
         return {};
     }
@@ -47,4 +44,8 @@ export const api = {
   saveCreators: (data: Creator[]) => request('/creators', { method: 'POST', body: JSON.stringify(data) }),
   getSettings: () => request('/settings'),
   saveSettings: (data: Settings) => request('/settings', { method: 'POST', body: JSON.stringify(data) }),
+  
+  // --- اضافه شد ---
+  getStats: (): Promise<Stats> => request('/stats'),
+  recordVisit: () => request('/stats/visit', { method: 'POST' }),
 };
