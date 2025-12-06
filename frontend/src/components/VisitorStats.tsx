@@ -33,10 +33,10 @@ export const VisitorStats: React.FC = () => {
   if (loading) return null;
 
   return (
-    // تغییرات اصلی اینجا اعمال شد:
-    // mt-12: فاصله از بالا کم شد تا به کارت‌ها نزدیک‌تر شود
-    // mb-8: فاصله از پایین دقیقاً حدود ۳۰ پیکسل تنظیم شد
-    <div className="w-full max-w-3xl mx-auto mt-12 mb-8 px-4 animate-in slide-in-from-bottom-8 duration-1000">
+    // تغییرات اصلی اینجاست:
+    // mt-56: فاصله بسیار زیاد از بالا (از کارت‌ها دور می‌شود)
+    // mb-2: فاصله بسیار کم از پایین (به فوتر می‌چسبد)
+    <div className="w-full max-w-3xl mx-auto mt-56 mb-2 px-4 animate-in slide-in-from-bottom-8 duration-1000">
       {/* Container: Capsule Shape */}
       <div className="relative bg-white/30 dark:bg-gray-900/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] px-4 py-3 md:px-8 md:py-4 group hover:shadow-[0_20px_50px_-10px_rgba(124,58,237,0.2)] transition-all duration-500">
         
